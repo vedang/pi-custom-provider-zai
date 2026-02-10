@@ -30,6 +30,52 @@ export interface ZaiProviderConfigInput {
 	streamSimple: ZaiStreamSimple;
 }
 
+export interface ZaiProviderModelConfig {
+	id: string;
+	name: string;
+	reasoning: boolean;
+	input: ["text"];
+	cost: {
+		input: number;
+		output: number;
+		cacheRead: number;
+		cacheWrite: number;
+	};
+	contextWindow: number;
+	maxTokens: number;
+	compat: {
+		supportsDeveloperRole: false;
+		thinkingFormat: "zai";
+	};
+}
+
+export interface ZaiProviderConfig {
+	baseUrl: string;
+	apiKey: string;
+	api: "openai-completions";
+	streamSimple: ZaiStreamSimple;
+	models: ZaiProviderModelConfig[];
+}
+
+const ZAI_GLM_4_7_MODEL: ZaiProviderModelConfig = {
+	id: "zai-glm-4.7",
+	name: "ZAI GLM-4.7",
+	reasoning: true,
+	input: ["text"],
+	cost: {
+		input: 0.6,
+		output: 2.2,
+		cacheRead: 0.11,
+		cacheWrite: 0,
+	},
+	contextWindow: 204800,
+	maxTokens: 131072,
+	compat: {
+		supportsDeveloperRole: false,
+		thinkingFormat: "zai",
+	},
+};
+
 function parseOptionalNumber(value: unknown): number | undefined {
 	if (typeof value === "number" && Number.isFinite(value)) return value;
 	if (typeof value === "string") {
@@ -164,55 +210,13 @@ function resolveApiKey(env: Record<string, string | undefined>): string {
 export function buildZaiProviderConfig(
 	input: ZaiProviderConfigInput,
 	env: Record<string, string | undefined> = process.env,
-): {
-	baseUrl: string;
-	apiKey: string;
-	api: "openai-completions";
-	streamSimple: ZaiStreamSimple;
-	models: Array<{
-		id: string;
-		name: string;
-		reasoning: boolean;
-		input: ["text"];
-		cost: {
-			input: number;
-			output: number;
-			cacheRead: number;
-			cacheWrite: number;
-		};
-		contextWindow: number;
-		maxTokens: number;
-		compat: {
-			supportsDeveloperRole: false;
-			thinkingFormat: "zai";
-		};
-	}>;
-} {
+): ZaiProviderConfig {
 	const runtime = resolveZaiRuntimeSettings(env);
 	return {
 		baseUrl: runtime.zaiBaseUrl,
 		apiKey: resolveApiKey(env),
 		api: "openai-completions",
 		streamSimple: input.streamSimple,
-		models: [
-			{
-				id: "zai-glm-4.7",
-				name: "ZAI GLM-4.7",
-				reasoning: true,
-				input: ["text"],
-				cost: {
-					input: 0.6,
-					output: 2.2,
-					cacheRead: 0.11,
-					cacheWrite: 0,
-				},
-				contextWindow: 204800,
-				maxTokens: 131072,
-				compat: {
-					supportsDeveloperRole: false,
-					thinkingFormat: "zai",
-				},
-			},
-		],
+		models: [ZAI_GLM_4_7_MODEL],
 	};
 }

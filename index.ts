@@ -9,23 +9,28 @@ import {
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { buildZaiProviderConfig, createZaiStreamSimple } from "./config.js";
 
-export default function (pi: ExtensionAPI) {
-	const streamSimple = createZaiStreamSimple(
-		streamSimpleOpenAICompletions as unknown as (
-			model: unknown,
-			context: unknown,
-			options?: Record<string, unknown>,
-		) => unknown,
-	) as unknown as (
-		model: Model<Api>,
-		context: Context,
-		options?: SimpleStreamOptions,
-	) => AssistantMessageEventStream;
+type PiStreamSimple = (
+	model: Model<Api>,
+	context: Context,
+	options?: SimpleStreamOptions,
+) => AssistantMessageEventStream;
 
-	pi.registerProvider(
-		"zai-custom",
-		buildZaiProviderConfig({
-			streamSimple,
-		}),
+function streamSimpleViaOpenAICompletions(
+	model: unknown,
+	context: unknown,
+	options?: Record<string, unknown>,
+): unknown {
+	return streamSimpleOpenAICompletions(
+		model as Model<"openai-completions">,
+		context as Context,
+		options as SimpleStreamOptions,
 	);
+}
+
+export default function zaiCustomExtension(pi: ExtensionAPI): void {
+	const streamSimple = createZaiStreamSimple(
+		streamSimpleViaOpenAICompletions,
+	) as unknown as PiStreamSimple;
+
+	pi.registerProvider("zai-custom", buildZaiProviderConfig({ streamSimple }));
 }
