@@ -196,7 +196,7 @@ export function applyZaiPayloadKnobs(
 	const request = payload as Record<string, unknown>;
 	request.temperature = runtime.temperature;
 	request.top_p = runtime.topP;
-	request.clear_thinking = false;
+	request.clear_thinking = runtime.clearThinking;
 }
 
 /**

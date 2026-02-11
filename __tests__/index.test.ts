@@ -69,10 +69,11 @@ function assertPayloadKnobs(
 	payload: Record<string, unknown>,
 	temperature = DEFAULT_TEMPERATURE,
 	topP = DEFAULT_TOP_P,
+	clearThinking = DEFAULT_CLEAR_THINKING,
 ): void {
 	assert.equal(payload.temperature, temperature);
 	assert.equal(payload.top_p, topP);
-	assert.equal(payload.clear_thinking, false);
+	assert.equal(payload.clear_thinking, clearThinking);
 }
 
 test("index extension registers zai-custom provider", () => {
@@ -163,7 +164,20 @@ test("applyZaiPayloadKnobs injects temperature/top_p/clear_thinking for Cerebras
 	assertPayloadKnobs(payload);
 });
 
-test("applyZaiPayloadKnobs forces clear_thinking=false for z.ai endpoints", () => {
+test("applyZaiPayloadKnobs respects clear_thinking knob for Cerebras", () => {
+	const payload: Record<string, unknown> = {};
+
+	applyZaiPayloadKnobs(payload, {
+		temperature: DEFAULT_TEMPERATURE,
+		topP: DEFAULT_TOP_P,
+		clearThinking: true,
+		zaiBaseUrl: DEFAULT_ZAI_BASE_URL,
+	});
+
+	assertPayloadKnobs(payload, DEFAULT_TEMPERATURE, DEFAULT_TOP_P, true);
+});
+
+test("applyZaiPayloadKnobs respects clear_thinking knob for z.ai endpoints", () => {
 	const payload: Record<string, unknown> = {};
 
 	applyZaiPayloadKnobs(payload, {
@@ -173,7 +187,7 @@ test("applyZaiPayloadKnobs forces clear_thinking=false for z.ai endpoints", () =
 		zaiBaseUrl: ZAI_CODING_BASE_URL,
 	});
 
-	assertPayloadKnobs(payload);
+	assertPayloadKnobs(payload, DEFAULT_TEMPERATURE, DEFAULT_TOP_P, true);
 });
 
 test("createZaiStreamSimple enforces payload knobs while preserving caller onPayload", () => {
@@ -207,7 +221,7 @@ test("createZaiStreamSimple enforces payload knobs while preserving caller onPay
 
 	assert.equal(callerOnPayloadSeen, true);
 	assert.equal(payload.fromCaller, true);
-	assertPayloadKnobs(payload, 0.42, 0.84);
+	assertPayloadKnobs(payload, 0.42, 0.84, true);
 });
 
 test("createZaiStreamSimple ignores legacy non-PI ZAI knob env formats", () => {
