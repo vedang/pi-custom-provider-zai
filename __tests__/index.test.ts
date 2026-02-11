@@ -91,10 +91,18 @@ test("buildZaiProviderConfig registers zai-glm-4.7 and default Cerebras URL", ()
 
 test("buildZaiProviderConfig supports overriding base URL for z.ai endpoint", () => {
 	const config = buildConfig({
-		PI_ZAI_BASE_URL: ZAI_CODING_BASE_URL,
+		PI_ZAI_CUSTOM_BASE_URL: ZAI_CODING_BASE_URL,
 	});
 
 	assert.equal(config.baseUrl, ZAI_CODING_BASE_URL);
+});
+
+test("buildZaiProviderConfig ignores legacy PI_ZAI_BASE_URL env format", () => {
+	const config = buildConfig({
+		PI_ZAI_BASE_URL: "https://legacy.example.invalid",
+	});
+
+	assert.equal(config.baseUrl, DEFAULT_ZAI_BASE_URL);
 });
 
 test("buildZaiProviderConfig ignores legacy ZAI_BASE_URL env format", () => {
@@ -125,7 +133,7 @@ test("buildZaiProviderConfig prefers CEREBRAS_API_KEY on Cerebras endpoints when
 
 test("buildZaiProviderConfig prefers ZAI_API_KEY on z.ai endpoints when both keys are present", () => {
 	const config = buildConfig({
-		PI_ZAI_BASE_URL: ZAI_CODING_BASE_URL,
+		PI_ZAI_CUSTOM_BASE_URL: ZAI_CODING_BASE_URL,
 		ZAI_API_KEY: "zai-key",
 		CEREBRAS_API_KEY: "cerebras-key",
 	});
@@ -171,10 +179,10 @@ test("applyZaiPayloadKnobs forces clear_thinking=false for z.ai endpoints", () =
 test("createZaiStreamSimple enforces payload knobs while preserving caller onPayload", () => {
 	const recorder = createCapturedOptionsRecorder();
 	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
-		PI_ZAI_TEMPERATURE: "0.42",
-		PI_ZAI_TOP_P: "0.84",
-		PI_ZAI_CLEAR_THINKING: "true",
-		PI_ZAI_BASE_URL: ZAI_CODING_BASE_URL,
+		PI_TEMPERATURE: "0.42",
+		PI_ZAI_CUSTOM_TOP_P: "0.84",
+		PI_ZAI_CUSTOM_CLEAR_THINKING: "true",
+		PI_ZAI_CUSTOM_BASE_URL: ZAI_CODING_BASE_URL,
 	});
 
 	let callerOnPayloadSeen = false;
@@ -220,4 +228,105 @@ test("createZaiStreamSimple ignores legacy non-PI ZAI knob env formats", () => {
 		payload,
 	);
 	assertPayloadKnobs(payload);
+});
+
+test("createZaiStreamSimple ignores legacy PI_ZAI_TEMPERATURE/PI_ZAI_TOP_P/PI_ZAI_CLEAR_THINKING/PI_ZAI_BASE_URL env formats", () => {
+	const recorder = createCapturedOptionsRecorder();
+	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
+		PI_ZAI_TEMPERATURE: "0.01",
+		PI_ZAI_TOP_P: "0.02",
+		PI_ZAI_CLEAR_THINKING: "true",
+		PI_ZAI_BASE_URL: "https://legacy.example.invalid",
+	});
+
+	streamSimple(createTestModel(), { messages: [] }, {});
+
+	const capturedOptions = recorder.getCapturedOptions();
+	assert.equal(capturedOptions?.temperature, DEFAULT_TEMPERATURE);
+
+	const payload: Record<string, unknown> = {};
+	(capturedOptions?.onPayload as ((payload: unknown) => void) | undefined)?.(
+		payload,
+	);
+	assertPayloadKnobs(payload);
+});
+
+test("createZaiStreamSimple prefers options temperature over PI_TEMPERATURE", () => {
+	const recorder = createCapturedOptionsRecorder();
+	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
+		PI_TEMPERATURE: "0.42",
+	});
+
+	streamSimple(createTestModel(), { messages: [] }, { temperature: 0.75 });
+
+	const capturedOptions = recorder.getCapturedOptions();
+	assert.equal(capturedOptions?.temperature, 0.75);
+
+	const payload: Record<string, unknown> = {};
+	(capturedOptions?.onPayload as ((payload: unknown) => void) | undefined)?.(
+		payload,
+	);
+	assertPayloadKnobs(payload, 0.75, DEFAULT_TOP_P);
+});
+
+test("createZaiStreamSimple treats empty string PI_TEMPERATURE as undefined, falls back to default", () => {
+	const recorder = createCapturedOptionsRecorder();
+	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
+		PI_TEMPERATURE: "",
+	});
+
+	streamSimple(createTestModel(), { messages: [] }, {});
+
+	const capturedOptions = recorder.getCapturedOptions();
+	assert.equal(capturedOptions?.temperature, DEFAULT_TEMPERATURE);
+
+	const payload: Record<string, unknown> = {};
+	(capturedOptions?.onPayload as ((payload: unknown) => void) | undefined)?.(
+		payload,
+	);
+	assertPayloadKnobs(payload);
+});
+
+test("createZaiStreamSimple treats empty string PI_ZAI_CUSTOM_TOP_P as undefined, falls back to default", () => {
+	const recorder = createCapturedOptionsRecorder();
+	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
+		PI_ZAI_CUSTOM_TOP_P: "",
+	});
+
+	streamSimple(createTestModel(), { messages: [] }, {});
+
+	const capturedOptions = recorder.getCapturedOptions();
+	assert.equal(capturedOptions?.temperature, DEFAULT_TEMPERATURE);
+
+	const payload: Record<string, unknown> = {};
+	(capturedOptions?.onPayload as ((payload: unknown) => void) | undefined)?.(
+		payload,
+	);
+	assertPayloadKnobs(payload);
+});
+
+test("createZaiStreamSimple treats empty string PI_ZAI_CUSTOM_CLEAR_THINKING as undefined, falls back to default", () => {
+	const recorder = createCapturedOptionsRecorder();
+	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
+		PI_ZAI_CUSTOM_CLEAR_THINKING: "",
+	});
+
+	streamSimple(createTestModel(), { messages: [] }, {});
+
+	const capturedOptions = recorder.getCapturedOptions();
+	assert.equal(capturedOptions?.temperature, DEFAULT_TEMPERATURE);
+
+	const payload: Record<string, unknown> = {};
+	(capturedOptions?.onPayload as ((payload: unknown) => void) | undefined)?.(
+		payload,
+	);
+	assertPayloadKnobs(payload);
+});
+
+test("createZaiStreamSimple treats empty string PI_ZAI_CUSTOM_BASE_URL as undefined, falls back to default", () => {
+	const config = buildConfig({
+		PI_ZAI_CUSTOM_BASE_URL: "",
+	});
+
+	assert.equal(config.baseUrl, DEFAULT_ZAI_BASE_URL);
 });

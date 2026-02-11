@@ -113,54 +113,63 @@ function firstDefined<T>(...values: Array<T | undefined>): T | undefined {
 }
 
 function resolveNumberKnob(
-	envValue: string | undefined,
 	defaultValue: number,
+	envValue: string | undefined,
 	...optionValues: unknown[]
 ): number {
 	return (
 		firstDefined(
-			parseOptionalNumber(envValue),
 			...optionValues.map((value) => parseOptionalNumber(value)),
+			parseOptionalNumber(envValue),
 		) ?? defaultValue
 	);
 }
 
 function resolveBooleanKnob(
-	envValue: string | undefined,
 	defaultValue: boolean,
+	envValue: string | undefined,
 	...optionValues: unknown[]
 ): boolean {
 	return (
 		firstDefined(
-			parseOptionalBoolean(envValue),
 			...optionValues.map((value) => parseOptionalBoolean(value)),
+			parseOptionalBoolean(envValue),
 		) ?? defaultValue
 	);
 }
 
+/**
+ * [tag:zai_custom_env_knob_contract]
+ * Subagent frontmatter knobs are threaded into child processes via env vars:
+ * - Generic temperature: PI_TEMPERATURE
+ * - ZAI-specific knobs: PI_ZAI_CUSTOM_TOP_P, PI_ZAI_CUSTOM_CLEAR_THINKING, PI_ZAI_CUSTOM_BASE_URL
+ * These are consumed here for per-role provider behavior.
+ */
 export function resolveZaiRuntimeSettings(
 	env: Record<string, string | undefined> = process.env,
 	options?: ZaiSimpleOptions,
 ): ZaiRuntimeSettings {
+	// [ref:generic_temperature_env_contract] - Generic temperature from subagent
 	const temperature = resolveNumberKnob(
-		env.PI_ZAI_TEMPERATURE,
 		DEFAULT_TEMPERATURE,
+		env.PI_TEMPERATURE,
 		options?.temperature,
 	);
+	// [ref:zai_custom_env_knob_contract] - ZAI-specific knobs
 	const topP = resolveNumberKnob(
-		env.PI_ZAI_TOP_P,
 		DEFAULT_TOP_P,
+		env.PI_ZAI_CUSTOM_TOP_P,
 		options?.top_p,
 		options?.topP,
 	);
 	const clearThinking = resolveBooleanKnob(
-		env.PI_ZAI_CLEAR_THINKING,
 		DEFAULT_CLEAR_THINKING,
+		env.PI_ZAI_CUSTOM_CLEAR_THINKING,
 		options?.clear_thinking,
 		options?.clearThinking,
 	);
 	const zaiBaseUrl =
-		parseOptionalString(env.PI_ZAI_BASE_URL) ?? DEFAULT_ZAI_BASE_URL;
+		parseOptionalString(env.PI_ZAI_CUSTOM_BASE_URL) ?? DEFAULT_ZAI_BASE_URL;
 
 	return {
 		temperature,
@@ -191,9 +200,9 @@ export function applyZaiPayloadKnobs(
 }
 
 /**
- * [tag:zai_custom_env_knob_contract]
- * Subagent frontmatter knobs are threaded into child processes via PI_ZAI_* env
- * vars, then consumed here for per-role provider behavior.
+ * [ref:zai_custom_env_knob_contract]
+ * Subagent frontmatter knobs are threaded into child processes via env vars,
+ * then consumed here for per-role provider behavior.
  */
 export function createZaiStreamSimple(
 	baseStreamSimple: ZaiStreamSimple,
