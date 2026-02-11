@@ -117,16 +117,12 @@ export function resolveZaiRuntimeSettings(
 	const temperature =
 		firstDefined(
 			parseOptionalNumber(env.PI_ZAI_TEMPERATURE),
-			parseOptionalNumber(env.ZAI_TEMPERATURE),
-			parseOptionalNumber(env.ZAI_CUSTOM_TEMPERATURE),
 			parseOptionalNumber(options?.temperature),
 		) ?? DEFAULT_TEMPERATURE;
 
 	const topP =
 		firstDefined(
 			parseOptionalNumber(env.PI_ZAI_TOP_P),
-			parseOptionalNumber(env.ZAI_TOP_P),
-			parseOptionalNumber(env.ZAI_CUSTOM_TOP_P),
 			parseOptionalNumber(options?.top_p),
 			parseOptionalNumber(options?.topP),
 		) ?? DEFAULT_TOP_P;
@@ -134,18 +130,12 @@ export function resolveZaiRuntimeSettings(
 	const clearThinking =
 		firstDefined(
 			parseOptionalBoolean(env.PI_ZAI_CLEAR_THINKING),
-			parseOptionalBoolean(env.ZAI_CLEAR_THINKING),
-			parseOptionalBoolean(env.ZAI_CUSTOM_CLEAR_THINKING),
 			parseOptionalBoolean(options?.clear_thinking),
 			parseOptionalBoolean(options?.clearThinking),
 		) ?? DEFAULT_CLEAR_THINKING;
 
 	const zaiBaseUrl =
-		firstDefined(
-			parseOptionalString(env.PI_ZAI_BASE_URL),
-			parseOptionalString(env.ZAI_BASE_URL),
-			parseOptionalString(env.ZAI_CUSTOM_BASE_URL),
-		) ?? DEFAULT_ZAI_BASE_URL;
+		parseOptionalString(env.PI_ZAI_BASE_URL) ?? DEFAULT_ZAI_BASE_URL;
 
 	return {
 		temperature,
@@ -200,10 +190,9 @@ function resolveApiKey(env: Record<string, string | undefined>): string {
 	return (
 		firstDefined(
 			parseOptionalString(env.PI_ZAI_API_KEY),
-			parseOptionalString(env.ZAI_CUSTOM_API_KEY),
 			parseOptionalString(env.ZAI_API_KEY),
 			parseOptionalString(env.CEREBRAS_API_KEY),
-		) ?? "ZAI_CUSTOM_API_KEY"
+		) ?? "PI_ZAI_API_KEY"
 	);
 }
 
