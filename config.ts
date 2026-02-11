@@ -119,8 +119,8 @@ function resolveNumberKnob(
 ): number {
 	return (
 		firstDefined(
-			...optionValues.map((value) => parseOptionalNumber(value)),
 			parseOptionalNumber(envValue),
+			...optionValues.map((value) => parseOptionalNumber(value)),
 		) ?? defaultValue
 	);
 }
@@ -132,8 +132,8 @@ function resolveBooleanKnob(
 ): boolean {
 	return (
 		firstDefined(
-			...optionValues.map((value) => parseOptionalBoolean(value)),
 			parseOptionalBoolean(envValue),
+			...optionValues.map((value) => parseOptionalBoolean(value)),
 		) ?? defaultValue
 	);
 }

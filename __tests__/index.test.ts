@@ -251,7 +251,7 @@ test("createZaiStreamSimple ignores legacy PI_ZAI_TEMPERATURE/PI_ZAI_TOP_P/PI_ZA
 	assertPayloadKnobs(payload);
 });
 
-test("createZaiStreamSimple prefers options temperature over PI_TEMPERATURE", () => {
+test("createZaiStreamSimple env PI_TEMPERATURE overrides options temperature", () => {
 	const recorder = createCapturedOptionsRecorder();
 	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
 		PI_TEMPERATURE: "0.42",
@@ -260,13 +260,33 @@ test("createZaiStreamSimple prefers options temperature over PI_TEMPERATURE", ()
 	streamSimple(createTestModel(), { messages: [] }, { temperature: 0.75 });
 
 	const capturedOptions = recorder.getCapturedOptions();
-	assert.equal(capturedOptions?.temperature, 0.75);
+	assert.equal(capturedOptions?.temperature, 0.42);
 
 	const payload: Record<string, unknown> = {};
 	(capturedOptions?.onPayload as ((payload: unknown) => void) | undefined)?.(
 		payload,
 	);
-	assertPayloadKnobs(payload, 0.75, DEFAULT_TOP_P);
+	assertPayloadKnobs(payload, 0.42, DEFAULT_TOP_P);
+});
+
+test("createZaiStreamSimple env PI_ZAI_CUSTOM_TOP_P overrides options top_p", () => {
+	const recorder = createCapturedOptionsRecorder();
+	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
+		PI_ZAI_CUSTOM_TOP_P: "0.84",
+	});
+
+	streamSimple(createTestModel(), { messages: [] }, { top_p: 0.5 });
+
+	const capturedOptions = recorder.getCapturedOptions();
+	// top_p in options is preserved (not overridden in wrappedOptions), but payload gets env value
+	assert.equal(capturedOptions?.top_p, 0.5);
+
+	const payload: Record<string, unknown> = {};
+	(capturedOptions?.onPayload as ((payload: unknown) => void) | undefined)?.(
+		payload,
+	);
+	// The payload gets the env value, proving env wins over options
+	assertPayloadKnobs(payload, DEFAULT_TEMPERATURE, 0.84);
 });
 
 test("createZaiStreamSimple treats empty string PI_TEMPERATURE as undefined, falls back to default", () => {
