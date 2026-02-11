@@ -187,11 +187,7 @@ export function applyZaiPayloadKnobs(
 	const request = payload as Record<string, unknown>;
 	request.temperature = runtime.temperature;
 	request.top_p = runtime.topP;
-	if (isZaiEndpoint(runtime.zaiBaseUrl)) {
-		request.clear_thinking = runtime.clearThinking;
-	} else {
-		delete request.clear_thinking;
-	}
+	request.clear_thinking = false;
 }
 
 /**

@@ -132,7 +132,7 @@ test("buildZaiProviderConfig ignores legacy ZAI_CUSTOM_API_KEY when modern keys 
 	assert.equal(config.apiKey, "cerebras-key");
 });
 
-test("applyZaiPayloadKnobs injects temperature/top_p and omits clear_thinking for Cerebras", () => {
+test("applyZaiPayloadKnobs injects temperature/top_p/clear_thinking for Cerebras", () => {
 	const payload: Record<string, unknown> = {};
 
 	applyZaiPayloadKnobs(payload, {
@@ -144,10 +144,10 @@ test("applyZaiPayloadKnobs injects temperature/top_p and omits clear_thinking fo
 
 	assert.equal(payload.temperature, DEFAULT_TEMPERATURE);
 	assert.equal(payload.top_p, DEFAULT_TOP_P);
-	assert.equal(payload.clear_thinking, undefined);
+	assert.equal(payload.clear_thinking, false);
 });
 
-test("applyZaiPayloadKnobs injects clear_thinking for z.ai endpoints", () => {
+test("applyZaiPayloadKnobs forces clear_thinking=false for z.ai endpoints", () => {
 	const payload: Record<string, unknown> = {};
 
 	applyZaiPayloadKnobs(payload, {
@@ -159,7 +159,7 @@ test("applyZaiPayloadKnobs injects clear_thinking for z.ai endpoints", () => {
 
 	assert.equal(payload.temperature, DEFAULT_TEMPERATURE);
 	assert.equal(payload.top_p, DEFAULT_TOP_P);
-	assert.equal(payload.clear_thinking, true);
+	assert.equal(payload.clear_thinking, false);
 });
 
 test("createZaiStreamSimple enforces payload knobs while preserving caller onPayload", () => {
@@ -195,7 +195,7 @@ test("createZaiStreamSimple enforces payload knobs while preserving caller onPay
 	assert.equal(payload.fromCaller, true);
 	assert.equal(payload.temperature, 0.42);
 	assert.equal(payload.top_p, 0.84);
-	assert.equal(payload.clear_thinking, true);
+	assert.equal(payload.clear_thinking, false);
 });
 
 test("createZaiStreamSimple ignores legacy non-PI ZAI knob env formats", () => {
@@ -217,5 +217,5 @@ test("createZaiStreamSimple ignores legacy non-PI ZAI knob env formats", () => {
 	);
 	assert.equal(payload.temperature, DEFAULT_TEMPERATURE);
 	assert.equal(payload.top_p, DEFAULT_TOP_P);
-	assert.equal(payload.clear_thinking, undefined);
+	assert.equal(payload.clear_thinking, false);
 });
