@@ -233,11 +233,11 @@ function resolveApiKey(
 
 	const zaiKey = parseOptionalString(env.ZAI_API_KEY);
 	const cerebrasKey = parseOptionalString(env.CEREBRAS_API_KEY);
-	const prioritizedKeys = isZaiEndpoint(baseUrl)
-		? [zaiKey, cerebrasKey]
-		: [cerebrasKey, zaiKey];
+	const selectedKey = isZaiEndpoint(baseUrl)
+		? firstDefined(zaiKey, cerebrasKey)
+		: firstDefined(cerebrasKey, zaiKey);
 
-	return firstDefined(...prioritizedKeys) ?? API_KEY_ENV_PLACEHOLDER;
+	return selectedKey ?? API_KEY_ENV_PLACEHOLDER;
 }
 
 export function buildZaiProviderConfig(

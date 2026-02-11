@@ -12,6 +12,7 @@ import {
 	applyZaiPayloadKnobs,
 	buildZaiProviderConfig,
 	createZaiStreamSimple,
+	type ZaiRuntimeSettings,
 } from "../config";
 
 const indexPath = join(
@@ -74,6 +75,26 @@ function assertPayloadKnobs(
 	assert.equal(payload.temperature, temperature);
 	assert.equal(payload.top_p, topP);
 	assert.equal(payload.clear_thinking, clearThinking);
+}
+
+function buildRuntimeSettings(
+	overrides: Partial<ZaiRuntimeSettings> = {},
+): ZaiRuntimeSettings {
+	return {
+		temperature: DEFAULT_TEMPERATURE,
+		topP: DEFAULT_TOP_P,
+		clearThinking: DEFAULT_CLEAR_THINKING,
+		zaiBaseUrl: DEFAULT_ZAI_BASE_URL,
+		...overrides,
+	};
+}
+
+function applyKnobsWithRuntime(
+	overrides: Partial<ZaiRuntimeSettings> = {},
+): Record<string, unknown> {
+	const payload: Record<string, unknown> = {};
+	applyZaiPayloadKnobs(payload, buildRuntimeSettings(overrides));
+	return payload;
 }
 
 test("index extension registers zai-custom provider", () => {
@@ -152,37 +173,19 @@ test("buildZaiProviderConfig ignores legacy ZAI_CUSTOM_API_KEY when modern keys 
 });
 
 test("applyZaiPayloadKnobs injects temperature/top_p/clear_thinking for Cerebras", () => {
-	const payload: Record<string, unknown> = {};
-
-	applyZaiPayloadKnobs(payload, {
-		temperature: DEFAULT_TEMPERATURE,
-		topP: DEFAULT_TOP_P,
-		clearThinking: DEFAULT_CLEAR_THINKING,
-		zaiBaseUrl: DEFAULT_ZAI_BASE_URL,
-	});
+	const payload = applyKnobsWithRuntime();
 
 	assertPayloadKnobs(payload);
 });
 
 test("applyZaiPayloadKnobs respects clear_thinking knob for Cerebras", () => {
-	const payload: Record<string, unknown> = {};
-
-	applyZaiPayloadKnobs(payload, {
-		temperature: DEFAULT_TEMPERATURE,
-		topP: DEFAULT_TOP_P,
-		clearThinking: true,
-		zaiBaseUrl: DEFAULT_ZAI_BASE_URL,
-	});
+	const payload = applyKnobsWithRuntime({ clearThinking: true });
 
 	assertPayloadKnobs(payload, DEFAULT_TEMPERATURE, DEFAULT_TOP_P, true);
 });
 
 test("applyZaiPayloadKnobs respects clear_thinking knob for z.ai endpoints", () => {
-	const payload: Record<string, unknown> = {};
-
-	applyZaiPayloadKnobs(payload, {
-		temperature: DEFAULT_TEMPERATURE,
-		topP: DEFAULT_TOP_P,
+	const payload = applyKnobsWithRuntime({
 		clearThinking: true,
 		zaiBaseUrl: ZAI_CODING_BASE_URL,
 	});
