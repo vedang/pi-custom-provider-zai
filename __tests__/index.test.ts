@@ -65,6 +65,16 @@ function createCapturedOptionsRecorder() {
 	};
 }
 
+function assertPayloadKnobs(
+	payload: Record<string, unknown>,
+	temperature = DEFAULT_TEMPERATURE,
+	topP = DEFAULT_TOP_P,
+): void {
+	assert.equal(payload.temperature, temperature);
+	assert.equal(payload.top_p, topP);
+	assert.equal(payload.clear_thinking, false);
+}
+
 test("index extension registers zai-custom provider", () => {
 	const source = readFileSync(indexPath, "utf-8");
 	assert.match(source, /registerProvider\([\s\S]*"zai-custom"/);
@@ -142,9 +152,7 @@ test("applyZaiPayloadKnobs injects temperature/top_p/clear_thinking for Cerebras
 		zaiBaseUrl: DEFAULT_ZAI_BASE_URL,
 	});
 
-	assert.equal(payload.temperature, DEFAULT_TEMPERATURE);
-	assert.equal(payload.top_p, DEFAULT_TOP_P);
-	assert.equal(payload.clear_thinking, false);
+	assertPayloadKnobs(payload);
 });
 
 test("applyZaiPayloadKnobs forces clear_thinking=false for z.ai endpoints", () => {
@@ -157,9 +165,7 @@ test("applyZaiPayloadKnobs forces clear_thinking=false for z.ai endpoints", () =
 		zaiBaseUrl: ZAI_CODING_BASE_URL,
 	});
 
-	assert.equal(payload.temperature, DEFAULT_TEMPERATURE);
-	assert.equal(payload.top_p, DEFAULT_TOP_P);
-	assert.equal(payload.clear_thinking, false);
+	assertPayloadKnobs(payload);
 });
 
 test("createZaiStreamSimple enforces payload knobs while preserving caller onPayload", () => {
@@ -193,9 +199,7 @@ test("createZaiStreamSimple enforces payload knobs while preserving caller onPay
 
 	assert.equal(callerOnPayloadSeen, true);
 	assert.equal(payload.fromCaller, true);
-	assert.equal(payload.temperature, 0.42);
-	assert.equal(payload.top_p, 0.84);
-	assert.equal(payload.clear_thinking, false);
+	assertPayloadKnobs(payload, 0.42, 0.84);
 });
 
 test("createZaiStreamSimple ignores legacy non-PI ZAI knob env formats", () => {
@@ -215,7 +219,5 @@ test("createZaiStreamSimple ignores legacy non-PI ZAI knob env formats", () => {
 	(capturedOptions?.onPayload as ((payload: unknown) => void) | undefined)?.(
 		payload,
 	);
-	assert.equal(payload.temperature, DEFAULT_TEMPERATURE);
-	assert.equal(payload.top_p, DEFAULT_TOP_P);
-	assert.equal(payload.clear_thinking, false);
+	assertPayloadKnobs(payload);
 });
