@@ -74,6 +74,7 @@ test("buildZaiProviderConfig registers zai-glm-4.7 and default Cerebras URL", ()
 	assert.equal(config.baseUrl, DEFAULT_ZAI_BASE_URL);
 	assert.equal(config.api, "openai-completions");
 	assert.equal(config.models?.[0]?.id, "zai-glm-4.7");
+	assert.equal(config.models?.[0]?.reasoning, false);
 });
 
 test("buildZaiProviderConfig supports overriding base URL for z.ai endpoint", () => {
@@ -101,6 +102,25 @@ test("buildZaiProviderConfig supports API key from PI_ZAI_API_KEY, ZAI_API_KEY, 
 	);
 });
 
+test("buildZaiProviderConfig prefers CEREBRAS_API_KEY on Cerebras endpoints when both keys are present", () => {
+	const config = buildConfig({
+		ZAI_API_KEY: "zai-key",
+		CEREBRAS_API_KEY: "cerebras-key",
+	});
+
+	assert.equal(config.apiKey, "cerebras-key");
+});
+
+test("buildZaiProviderConfig prefers ZAI_API_KEY on z.ai endpoints when both keys are present", () => {
+	const config = buildConfig({
+		PI_ZAI_BASE_URL: "https://api.z.ai/api/coding/paas/v4",
+		ZAI_API_KEY: "zai-key",
+		CEREBRAS_API_KEY: "cerebras-key",
+	});
+
+	assert.equal(config.apiKey, "zai-key");
+});
+
 test("buildZaiProviderConfig ignores legacy ZAI_CUSTOM_API_KEY when modern keys exist", () => {
 	const config = buildConfig({
 		ZAI_CUSTOM_API_KEY: "legacy-key",
@@ -110,7 +130,7 @@ test("buildZaiProviderConfig ignores legacy ZAI_CUSTOM_API_KEY when modern keys 
 	assert.equal(config.apiKey, "cerebras-key");
 });
 
-test("applyZaiPayloadKnobs injects temperature/top_p/clear_thinking", () => {
+test("applyZaiPayloadKnobs injects temperature/top_p and omits clear_thinking for Cerebras", () => {
 	const payload: Record<string, unknown> = {};
 
 	applyZaiPayloadKnobs(payload, {
@@ -122,7 +142,22 @@ test("applyZaiPayloadKnobs injects temperature/top_p/clear_thinking", () => {
 
 	assert.equal(payload.temperature, DEFAULT_TEMPERATURE);
 	assert.equal(payload.top_p, DEFAULT_TOP_P);
-	assert.equal(payload.clear_thinking, DEFAULT_CLEAR_THINKING);
+	assert.equal(payload.clear_thinking, undefined);
+});
+
+test("applyZaiPayloadKnobs injects clear_thinking for z.ai endpoints", () => {
+	const payload: Record<string, unknown> = {};
+
+	applyZaiPayloadKnobs(payload, {
+		temperature: DEFAULT_TEMPERATURE,
+		topP: DEFAULT_TOP_P,
+		clearThinking: true,
+		zaiBaseUrl: "https://api.z.ai/api/coding/paas/v4",
+	});
+
+	assert.equal(payload.temperature, DEFAULT_TEMPERATURE);
+	assert.equal(payload.top_p, DEFAULT_TOP_P);
+	assert.equal(payload.clear_thinking, true);
 });
 
 test("createZaiStreamSimple enforces payload knobs while preserving caller onPayload", () => {
@@ -180,5 +215,5 @@ test("createZaiStreamSimple ignores legacy non-PI ZAI knob env formats", () => {
 	);
 	assert.equal(payload.temperature, DEFAULT_TEMPERATURE);
 	assert.equal(payload.top_p, DEFAULT_TOP_P);
-	assert.equal(payload.clear_thinking, DEFAULT_CLEAR_THINKING);
+	assert.equal(payload.clear_thinking, undefined);
 });

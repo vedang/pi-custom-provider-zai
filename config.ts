@@ -60,7 +60,7 @@ export interface ZaiProviderConfig {
 const ZAI_GLM_4_7_MODEL: ZaiProviderModelConfig = {
 	id: "zai-glm-4.7",
 	name: "ZAI GLM-4.7",
-	reasoning: true,
+	reasoning: false,
 	input: ["text"],
 	cost: {
 		input: 0.6,
@@ -168,6 +168,14 @@ export function resolveZaiRuntimeSettings(
 	};
 }
 
+function isZaiEndpoint(baseUrl: string): boolean {
+	return baseUrl.toLowerCase().includes("api.z.ai");
+}
+
+function supportsClearThinking(baseUrl: string): boolean {
+	return isZaiEndpoint(baseUrl);
+}
+
 /**
  * [tag:zai_custom_payload_knobs]
  * Every request must carry explicit sampling/thinking knobs so provider defaults
@@ -181,7 +189,11 @@ export function applyZaiPayloadKnobs(
 	const request = payload as Record<string, unknown>;
 	request.temperature = runtime.temperature;
 	request.top_p = runtime.topP;
-	request.clear_thinking = runtime.clearThinking;
+	if (supportsClearThinking(runtime.zaiBaseUrl)) {
+		request.clear_thinking = runtime.clearThinking;
+	} else {
+		delete request.clear_thinking;
+	}
 }
 
 /**
@@ -209,14 +221,20 @@ export function createZaiStreamSimple(
 	};
 }
 
-function resolveApiKey(env: Record<string, string | undefined>): string {
-	return (
-		firstDefined(
-			parseOptionalString(env.PI_ZAI_API_KEY),
-			parseOptionalString(env.ZAI_API_KEY),
-			parseOptionalString(env.CEREBRAS_API_KEY),
-		) ?? "PI_ZAI_API_KEY"
-	);
+function resolveApiKey(
+	env: Record<string, string | undefined>,
+	baseUrl: string,
+): string {
+	const explicit = parseOptionalString(env.PI_ZAI_API_KEY);
+	if (explicit) return explicit;
+
+	const zaiKey = parseOptionalString(env.ZAI_API_KEY);
+	const cerebrasKey = parseOptionalString(env.CEREBRAS_API_KEY);
+
+	if (isZaiEndpoint(baseUrl)) {
+		return firstDefined(zaiKey, cerebrasKey) ?? "PI_ZAI_API_KEY";
+	}
+	return firstDefined(cerebrasKey, zaiKey) ?? "PI_ZAI_API_KEY";
 }
 
 export function buildZaiProviderConfig(
@@ -226,7 +244,7 @@ export function buildZaiProviderConfig(
 	const runtime = resolveZaiRuntimeSettings(env);
 	return {
 		baseUrl: runtime.zaiBaseUrl,
-		apiKey: resolveApiKey(env),
+		apiKey: resolveApiKey(env, runtime.zaiBaseUrl),
 		api: "openai-completions",
 		streamSimple: input.streamSimple,
 		models: [ZAI_GLM_4_7_MODEL],
