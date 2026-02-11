@@ -24,6 +24,8 @@ const providerInput = {
 	streamSimple: (() => ({}) as never) as never,
 };
 
+const ZAI_CODING_BASE_URL = "https://api.z.ai/api/coding/paas/v4";
+
 function buildConfig(
 	env: Record<string, string | undefined> = {},
 ): ReturnType<typeof buildZaiProviderConfig> {
@@ -36,7 +38,7 @@ function createTestModel() {
 		provider: "zai-custom",
 		api: "openai-completions",
 		baseUrl: DEFAULT_ZAI_BASE_URL,
-		reasoning: true,
+		reasoning: false,
 		input: ["text"],
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 		contextWindow: 1,
@@ -79,10 +81,10 @@ test("buildZaiProviderConfig registers zai-glm-4.7 and default Cerebras URL", ()
 
 test("buildZaiProviderConfig supports overriding base URL for z.ai endpoint", () => {
 	const config = buildConfig({
-		PI_ZAI_BASE_URL: "https://api.z.ai/api/coding/paas/v4",
+		PI_ZAI_BASE_URL: ZAI_CODING_BASE_URL,
 	});
 
-	assert.equal(config.baseUrl, "https://api.z.ai/api/coding/paas/v4");
+	assert.equal(config.baseUrl, ZAI_CODING_BASE_URL);
 });
 
 test("buildZaiProviderConfig ignores legacy ZAI_BASE_URL env format", () => {
@@ -113,7 +115,7 @@ test("buildZaiProviderConfig prefers CEREBRAS_API_KEY on Cerebras endpoints when
 
 test("buildZaiProviderConfig prefers ZAI_API_KEY on z.ai endpoints when both keys are present", () => {
 	const config = buildConfig({
-		PI_ZAI_BASE_URL: "https://api.z.ai/api/coding/paas/v4",
+		PI_ZAI_BASE_URL: ZAI_CODING_BASE_URL,
 		ZAI_API_KEY: "zai-key",
 		CEREBRAS_API_KEY: "cerebras-key",
 	});
@@ -152,7 +154,7 @@ test("applyZaiPayloadKnobs injects clear_thinking for z.ai endpoints", () => {
 		temperature: DEFAULT_TEMPERATURE,
 		topP: DEFAULT_TOP_P,
 		clearThinking: true,
-		zaiBaseUrl: "https://api.z.ai/api/coding/paas/v4",
+		zaiBaseUrl: ZAI_CODING_BASE_URL,
 	});
 
 	assert.equal(payload.temperature, DEFAULT_TEMPERATURE);
@@ -166,7 +168,7 @@ test("createZaiStreamSimple enforces payload knobs while preserving caller onPay
 		PI_ZAI_TEMPERATURE: "0.42",
 		PI_ZAI_TOP_P: "0.84",
 		PI_ZAI_CLEAR_THINKING: "true",
-		PI_ZAI_BASE_URL: "https://api.z.ai/api/coding/paas/v4",
+		PI_ZAI_BASE_URL: ZAI_CODING_BASE_URL,
 	});
 
 	let callerOnPayloadSeen = false;

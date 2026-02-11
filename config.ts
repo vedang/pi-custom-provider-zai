@@ -3,6 +3,8 @@ export const DEFAULT_TEMPERATURE = 0.9;
 export const DEFAULT_TOP_P = 0.95;
 export const DEFAULT_CLEAR_THINKING = false;
 
+const API_KEY_ENV_PLACEHOLDER = "PI_ZAI_API_KEY";
+
 export interface ZaiRuntimeSettings {
 	temperature: number;
 	topP: number;
@@ -172,10 +174,6 @@ function isZaiEndpoint(baseUrl: string): boolean {
 	return baseUrl.toLowerCase().includes("api.z.ai");
 }
 
-function supportsClearThinking(baseUrl: string): boolean {
-	return isZaiEndpoint(baseUrl);
-}
-
 /**
  * [tag:zai_custom_payload_knobs]
  * Every request must carry explicit sampling/thinking knobs so provider defaults
@@ -189,7 +187,7 @@ export function applyZaiPayloadKnobs(
 	const request = payload as Record<string, unknown>;
 	request.temperature = runtime.temperature;
 	request.top_p = runtime.topP;
-	if (supportsClearThinking(runtime.zaiBaseUrl)) {
+	if (isZaiEndpoint(runtime.zaiBaseUrl)) {
 		request.clear_thinking = runtime.clearThinking;
 	} else {
 		delete request.clear_thinking;
@@ -232,9 +230,9 @@ function resolveApiKey(
 	const cerebrasKey = parseOptionalString(env.CEREBRAS_API_KEY);
 
 	if (isZaiEndpoint(baseUrl)) {
-		return firstDefined(zaiKey, cerebrasKey) ?? "PI_ZAI_API_KEY";
+		return firstDefined(zaiKey, cerebrasKey) ?? API_KEY_ENV_PLACEHOLDER;
 	}
-	return firstDefined(cerebrasKey, zaiKey) ?? "PI_ZAI_API_KEY";
+	return firstDefined(cerebrasKey, zaiKey) ?? API_KEY_ENV_PLACEHOLDER;
 }
 
 export function buildZaiProviderConfig(
