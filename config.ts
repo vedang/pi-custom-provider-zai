@@ -110,30 +110,53 @@ function firstDefined<T>(...values: Array<T | undefined>): T | undefined {
 	return undefined;
 }
 
+function resolveNumberKnob(
+	envValue: string | undefined,
+	defaultValue: number,
+	...optionValues: unknown[]
+): number {
+	return (
+		firstDefined(
+			parseOptionalNumber(envValue),
+			...optionValues.map((value) => parseOptionalNumber(value)),
+		) ?? defaultValue
+	);
+}
+
+function resolveBooleanKnob(
+	envValue: string | undefined,
+	defaultValue: boolean,
+	...optionValues: unknown[]
+): boolean {
+	return (
+		firstDefined(
+			parseOptionalBoolean(envValue),
+			...optionValues.map((value) => parseOptionalBoolean(value)),
+		) ?? defaultValue
+	);
+}
+
 export function resolveZaiRuntimeSettings(
 	env: Record<string, string | undefined> = process.env,
 	options?: ZaiSimpleOptions,
 ): ZaiRuntimeSettings {
-	const temperature =
-		firstDefined(
-			parseOptionalNumber(env.PI_ZAI_TEMPERATURE),
-			parseOptionalNumber(options?.temperature),
-		) ?? DEFAULT_TEMPERATURE;
-
-	const topP =
-		firstDefined(
-			parseOptionalNumber(env.PI_ZAI_TOP_P),
-			parseOptionalNumber(options?.top_p),
-			parseOptionalNumber(options?.topP),
-		) ?? DEFAULT_TOP_P;
-
-	const clearThinking =
-		firstDefined(
-			parseOptionalBoolean(env.PI_ZAI_CLEAR_THINKING),
-			parseOptionalBoolean(options?.clear_thinking),
-			parseOptionalBoolean(options?.clearThinking),
-		) ?? DEFAULT_CLEAR_THINKING;
-
+	const temperature = resolveNumberKnob(
+		env.PI_ZAI_TEMPERATURE,
+		DEFAULT_TEMPERATURE,
+		options?.temperature,
+	);
+	const topP = resolveNumberKnob(
+		env.PI_ZAI_TOP_P,
+		DEFAULT_TOP_P,
+		options?.top_p,
+		options?.topP,
+	);
+	const clearThinking = resolveBooleanKnob(
+		env.PI_ZAI_CLEAR_THINKING,
+		DEFAULT_CLEAR_THINKING,
+		options?.clear_thinking,
+		options?.clearThinking,
+	);
 	const zaiBaseUrl =
 		parseOptionalString(env.PI_ZAI_BASE_URL) ?? DEFAULT_ZAI_BASE_URL;
 

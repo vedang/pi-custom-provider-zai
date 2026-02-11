@@ -20,18 +20,56 @@ const indexPath = join(
 	"index.ts",
 );
 
+const providerInput = {
+	streamSimple: (() => ({}) as never) as never,
+};
+
+function buildConfig(
+	env: Record<string, string | undefined> = {},
+): ReturnType<typeof buildZaiProviderConfig> {
+	return buildZaiProviderConfig(providerInput, env);
+}
+
+function createTestModel() {
+	return {
+		id: "zai-glm-4.7",
+		provider: "zai-custom",
+		api: "openai-completions",
+		baseUrl: DEFAULT_ZAI_BASE_URL,
+		reasoning: true,
+		input: ["text"],
+		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+		contextWindow: 1,
+		maxTokens: 1,
+	};
+}
+
+function createCapturedOptionsRecorder() {
+	let capturedOptions: Record<string, unknown> | undefined;
+	const baseStream = (
+		_model: unknown,
+		_context: unknown,
+		options?: Record<string, unknown>,
+	) => {
+		capturedOptions = options;
+		return {
+			push() {},
+			end() {},
+		} as never;
+	};
+	return {
+		baseStream,
+		getCapturedOptions: () => capturedOptions,
+	};
+}
+
 test("index extension registers zai-custom provider", () => {
 	const source = readFileSync(indexPath, "utf-8");
 	assert.match(source, /registerProvider\([\s\S]*"zai-custom"/);
 });
 
 test("buildZaiProviderConfig registers zai-glm-4.7 and default Cerebras URL", () => {
-	const config = buildZaiProviderConfig(
-		{
-			streamSimple: (() => ({}) as never) as never,
-		},
-		{},
-	);
+	const config = buildConfig();
 
 	assert.equal(config.baseUrl, DEFAULT_ZAI_BASE_URL);
 	assert.equal(config.api, "openai-completions");
@@ -39,51 +77,35 @@ test("buildZaiProviderConfig registers zai-glm-4.7 and default Cerebras URL", ()
 });
 
 test("buildZaiProviderConfig supports overriding base URL for z.ai endpoint", () => {
-	const config = buildZaiProviderConfig(
-		{
-			streamSimple: (() => ({}) as never) as never,
-		},
-		{ PI_ZAI_BASE_URL: "https://api.z.ai/api/coding/paas/v4" },
-	);
+	const config = buildConfig({
+		PI_ZAI_BASE_URL: "https://api.z.ai/api/coding/paas/v4",
+	});
 
 	assert.equal(config.baseUrl, "https://api.z.ai/api/coding/paas/v4");
 });
 
 test("buildZaiProviderConfig ignores legacy ZAI_BASE_URL env format", () => {
-	const config = buildZaiProviderConfig(
-		{
-			streamSimple: (() => ({}) as never) as never,
-		},
-		{ ZAI_BASE_URL: "https://legacy.example.invalid" },
-	);
+	const config = buildConfig({
+		ZAI_BASE_URL: "https://legacy.example.invalid",
+	});
 
 	assert.equal(config.baseUrl, DEFAULT_ZAI_BASE_URL);
 });
 
 test("buildZaiProviderConfig supports API key from PI_ZAI_API_KEY, ZAI_API_KEY, and CEREBRAS_API_KEY", () => {
-	const build = (env: Record<string, string>) =>
-		buildZaiProviderConfig(
-			{
-				streamSimple: (() => ({}) as never) as never,
-			},
-			env,
-		).apiKey;
-
-	assert.equal(build({ PI_ZAI_API_KEY: "pi-key" }), "pi-key");
-	assert.equal(build({ ZAI_API_KEY: "zai-key" }), "zai-key");
-	assert.equal(build({ CEREBRAS_API_KEY: "cerebras-key" }), "cerebras-key");
+	assert.equal(buildConfig({ PI_ZAI_API_KEY: "pi-key" }).apiKey, "pi-key");
+	assert.equal(buildConfig({ ZAI_API_KEY: "zai-key" }).apiKey, "zai-key");
+	assert.equal(
+		buildConfig({ CEREBRAS_API_KEY: "cerebras-key" }).apiKey,
+		"cerebras-key",
+	);
 });
 
 test("buildZaiProviderConfig ignores legacy ZAI_CUSTOM_API_KEY when modern keys exist", () => {
-	const config = buildZaiProviderConfig(
-		{
-			streamSimple: (() => ({}) as never) as never,
-		},
-		{
-			ZAI_CUSTOM_API_KEY: "legacy-key",
-			CEREBRAS_API_KEY: "cerebras-key",
-		},
-	);
+	const config = buildConfig({
+		ZAI_CUSTOM_API_KEY: "legacy-key",
+		CEREBRAS_API_KEY: "cerebras-key",
+	});
 
 	assert.equal(config.apiKey, "cerebras-key");
 });
@@ -104,20 +126,8 @@ test("applyZaiPayloadKnobs injects temperature/top_p/clear_thinking", () => {
 });
 
 test("createZaiStreamSimple enforces payload knobs while preserving caller onPayload", () => {
-	let capturedOptions: Record<string, unknown> | undefined;
-	const mockBaseStream = (
-		_model: unknown,
-		_context: unknown,
-		options?: Record<string, unknown>,
-	) => {
-		capturedOptions = options;
-		return {
-			push() {},
-			end() {},
-		} as never;
-	};
-
-	const streamSimple = createZaiStreamSimple(mockBaseStream as never, {
+	const recorder = createCapturedOptionsRecorder();
+	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
 		PI_ZAI_TEMPERATURE: "0.42",
 		PI_ZAI_TOP_P: "0.84",
 		PI_ZAI_CLEAR_THINKING: "true",
@@ -126,17 +136,7 @@ test("createZaiStreamSimple enforces payload knobs while preserving caller onPay
 
 	let callerOnPayloadSeen = false;
 	streamSimple(
-		{
-			id: "zai-glm-4.7",
-			provider: "zai-custom",
-			api: "openai-completions",
-			baseUrl: DEFAULT_ZAI_BASE_URL,
-			reasoning: true,
-			input: ["text"],
-			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-			contextWindow: 1,
-			maxTokens: 1,
-		},
+		createTestModel(),
 		{ messages: [] },
 		{
 			onPayload(payload) {
@@ -146,6 +146,7 @@ test("createZaiStreamSimple enforces payload knobs while preserving caller onPay
 		},
 	);
 
+	const capturedOptions = recorder.getCapturedOptions();
 	assert.equal(capturedOptions?.temperature, 0.42);
 
 	const payload: Record<string, unknown> = {};
@@ -161,41 +162,16 @@ test("createZaiStreamSimple enforces payload knobs while preserving caller onPay
 });
 
 test("createZaiStreamSimple ignores legacy non-PI ZAI knob env formats", () => {
-	let capturedOptions: Record<string, unknown> | undefined;
-	const mockBaseStream = (
-		_model: unknown,
-		_context: unknown,
-		options?: Record<string, unknown>,
-	) => {
-		capturedOptions = options;
-		return {
-			push() {},
-			end() {},
-		} as never;
-	};
-
-	const streamSimple = createZaiStreamSimple(mockBaseStream as never, {
+	const recorder = createCapturedOptionsRecorder();
+	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
 		ZAI_TEMPERATURE: "0.01",
 		ZAI_TOP_P: "0.02",
 		ZAI_CLEAR_THINKING: "true",
 	});
 
-	streamSimple(
-		{
-			id: "zai-glm-4.7",
-			provider: "zai-custom",
-			api: "openai-completions",
-			baseUrl: DEFAULT_ZAI_BASE_URL,
-			reasoning: true,
-			input: ["text"],
-			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-			contextWindow: 1,
-			maxTokens: 1,
-		},
-		{ messages: [] },
-		{},
-	);
+	streamSimple(createTestModel(), { messages: [] }, {});
 
+	const capturedOptions = recorder.getCapturedOptions();
 	assert.equal(capturedOptions?.temperature, DEFAULT_TEMPERATURE);
 
 	const payload: Record<string, unknown> = {};
