@@ -384,7 +384,7 @@ export function createZaiStreamSimple(
 		const wrappedOptions: ZaiSimpleOptions = {
 			...options,
 			// [ref:zai_custom_routed_api_key_precedence]
-			...(routedApiKey ? { apiKey: routedApiKey } : {}),
+			apiKey: routedApiKey ?? options?.apiKey,
 			temperature: runtime.temperature,
 			onPayload: (payload: unknown) => {
 				callerOnPayload?.(payload);
