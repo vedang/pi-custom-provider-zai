@@ -45,16 +45,17 @@ When invoking the provider, you can pass these options:
 The provider is registered as `zai-custom`.
 
 ```bash
-# Cerebras-hosted models only
-export CEREBRAS_API_KEY="your-cerebras-key"
-
-# ZAI-hosted models only
-export ZAI_API_KEY="your-zai-key"
-
-# Both model sets
 export CEREBRAS_API_KEY="your-cerebras-key"
 export ZAI_API_KEY="your-zai-key"
 ```
+
+## Model IDs (use these with `zai-custom/<model-id>`)
+
+| model_id      | Hosted by | Enabled when key is present | Example selector           |
+|---------------|-----------|-----------------------------|----------------------------|
+| `zai-glm-4.7` | Cerebras  | `CEREBRAS_API_KEY`          | `zai-custom/zai-glm-4.7`   |
+| `glm-4.7`     | ZAI       | `ZAI_API_KEY`               | `zai-custom/glm-4.7`       |
+| `glm-5`       | ZAI       | `ZAI_API_KEY`               | `zai-custom/glm-5`         |
 
 ## Model Matrix
 
@@ -62,16 +63,18 @@ export ZAI_API_KEY="your-zai-key"
 
 **GLM-4.7 Cerebras** (`zai-glm-4.7`)
 - Endpoint: `https://api.cerebras.ai/v1`
-- Context Window: 204,800 tokens
-- Max Output: 131,072 tokens
-- Input Cost: $0.60 / 1M tokens
-- Output Cost: $2.20 / 1M tokens
-- Cache Read: $0.11 / 1M tokens
+- Reasoning: false
+- Context Window: 131,072 tokens
+- Max Output: 40,000 tokens
+- Input Cost: $0.00 / 1M tokens
+- Output Cost: $0.00 / 1M tokens
+- Cache Read: $0.00 / 1M tokens
 
 ### ZAI-hosted
 
 **GLM 4.7 ZAI** (`glm-4.7`)
 - Endpoint: `https://api.z.ai/api/coding/paas/v4`
+- Reasoning: true
 - Context Window: 204,800 tokens
 - Max Output: 131,072 tokens
 - Input Cost: $0.60 / 1M tokens
@@ -80,6 +83,7 @@ export ZAI_API_KEY="your-zai-key"
 
 **GLM-5 (ZAI)** (`glm-5`)
 - Endpoint: `https://api.z.ai/api/coding/paas/v4`
+- Reasoning: true
 - Context Window: 200,000 tokens
 - Max Output: 128,000 tokens
 - Input Cost: $0.15 / 1M tokens

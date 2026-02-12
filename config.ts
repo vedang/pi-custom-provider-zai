@@ -75,13 +75,13 @@ const GLM_4_7_CEREBRAS_MODEL: ZaiModelTemplate = {
 	reasoning: false,
 	input: ["text"],
 	cost: {
-		input: 0.6,
-		output: 2.2,
-		cacheRead: 0.11,
+		input: 0,
+		output: 0,
+		cacheRead: 0,
 		cacheWrite: 0,
 	},
-	contextWindow: 204800,
-	maxTokens: 131072,
+	contextWindow: 131072,
+	maxTokens: 40000,
 	compat: {
 		supportsDeveloperRole: false,
 		thinkingFormat: "zai",
@@ -92,7 +92,7 @@ const GLM_4_7_ZAI_MODEL: ZaiModelTemplate = {
 	provider: "zai",
 	id: "glm-4.7",
 	name: "GLM 4.7 ZAI",
-	reasoning: false,
+	reasoning: true,
 	input: ["text"],
 	cost: {
 		input: 0.6,

@@ -120,8 +120,17 @@ test("buildZaiProviderConfig registers Cerebras models when CEREBRAS_API_KEY is 
 	assert.equal(config.models.length, 1);
 	assert.equal(config.models[0].id, "zai-glm-4.7");
 	assert.equal(config.models[0].name, "GLM-4.7 Cerebras");
+	assert.equal(config.models[0].reasoning, false);
 	assert.equal(config.models[0].baseUrl, CEREBRAS_BASE_URL);
 	assert.equal(config.models[0].apiKey, "cerebras-key");
+	assert.deepEqual(config.models[0].cost, {
+		input: 0,
+		output: 0,
+		cacheRead: 0,
+		cacheWrite: 0,
+	});
+	assert.equal(config.models[0].contextWindow, 131072);
+	assert.equal(config.models[0].maxTokens, 40000);
 	assert.equal(
 		config.models.some((model) => model.id === "glm-5"),
 		false,
@@ -136,8 +145,17 @@ test("buildZaiProviderConfig registers ZAI models when ZAI_API_KEY is set", () =
 	assert.equal(config.models.length, 2);
 	assert.equal(config.models[0].id, "glm-4.7");
 	assert.equal(config.models[0].name, "GLM 4.7 ZAI");
+	assert.equal(config.models[0].reasoning, true);
 	assert.equal(config.models[0].baseUrl, ZAI_BASE_URL);
 	assert.equal(config.models[0].apiKey, "zai-key");
+	assert.deepEqual(config.models[0].cost, {
+		input: 0.6,
+		output: 2.2,
+		cacheRead: 0.11,
+		cacheWrite: 0,
+	});
+	assert.equal(config.models[0].contextWindow, 204800);
+	assert.equal(config.models[0].maxTokens, 131072);
 	assert.equal(config.models[1].id, "glm-5");
 	assert.equal(config.models[1].name, "GLM-5 (ZAI)");
 	assert.equal(config.models[1].baseUrl, ZAI_BASE_URL);
