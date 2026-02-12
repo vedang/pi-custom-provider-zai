@@ -5,10 +5,11 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
+	CEREBRAS_BASE_URL,
 	DEFAULT_CLEAR_THINKING,
 	DEFAULT_TEMPERATURE,
 	DEFAULT_TOP_P,
-	DEFAULT_ZAI_BASE_URL,
+	ZAI_BASE_URL,
 	applyZaiPayloadKnobs,
 	buildZaiProviderConfig,
 	createZaiStreamSimple,
@@ -25,20 +26,19 @@ const providerInput = {
 	streamSimple: (() => ({}) as never) as never,
 };
 
-const ZAI_CODING_BASE_URL = "https://api.z.ai/api/coding/paas/v4";
-
 function buildConfig(
 	env: Record<string, string | undefined> = {},
 ): ReturnType<typeof buildZaiProviderConfig> {
 	return buildZaiProviderConfig(providerInput, env);
 }
 
-function createTestModel() {
+function createTestModel(id = "zai-glm-4.7") {
 	return {
-		id: "zai-glm-4.7",
+		id,
 		provider: "zai-custom",
 		api: "openai-completions",
-		baseUrl: DEFAULT_ZAI_BASE_URL,
+		baseUrl: "https://example.invalid/v1",
+		apiKey: "placeholder-key",
 		reasoning: false,
 		input: ["text"],
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -47,13 +47,15 @@ function createTestModel() {
 	};
 }
 
-function createCapturedOptionsRecorder() {
+function createCapturedInvocationRecorder() {
 	let capturedOptions: Record<string, unknown> | undefined;
+	let capturedModel: Record<string, unknown> | undefined;
 	const baseStream = (
-		_model: unknown,
+		model: unknown,
 		_context: unknown,
 		options?: Record<string, unknown>,
 	) => {
+		capturedModel = model as Record<string, unknown>;
 		capturedOptions = options;
 		return {
 			push() {},
@@ -63,6 +65,7 @@ function createCapturedOptionsRecorder() {
 	return {
 		baseStream,
 		getCapturedOptions: () => capturedOptions,
+		getCapturedModel: () => capturedModel,
 	};
 }
 
@@ -84,7 +87,6 @@ function buildRuntimeSettings(
 		temperature: DEFAULT_TEMPERATURE,
 		topP: DEFAULT_TOP_P,
 		clearThinking: DEFAULT_CLEAR_THINKING,
-		zaiBaseUrl: DEFAULT_ZAI_BASE_URL,
 		...overrides,
 	};
 }
@@ -102,126 +104,155 @@ test("index extension registers zai-custom provider", () => {
 	assert.match(source, /registerProvider\([\s\S]*"zai-custom"/);
 });
 
-test("buildZaiProviderConfig registers GLM-4.7 Cerebras on default Cerebras URL", () => {
+test("buildZaiProviderConfig returns no models when no provider keys are configured", () => {
 	const config = buildConfig();
 
-	assert.equal(config.baseUrl, DEFAULT_ZAI_BASE_URL);
 	assert.equal(config.api, "openai-completions");
-	assert.equal(config.models?.[0]?.id, "zai-glm-4.7");
-	assert.equal(config.models?.[0]?.name, "GLM-4.7 Cerebras");
-	assert.equal(config.models?.[0]?.reasoning, false);
+	assert.equal(config.baseUrl, CEREBRAS_BASE_URL);
+	assert.equal(config.models.length, 0);
+});
+
+test("buildZaiProviderConfig registers Cerebras models when CEREBRAS_API_KEY is set", () => {
+	const config = buildConfig({
+		CEREBRAS_API_KEY: "cerebras-key",
+	});
+
+	assert.equal(config.models.length, 1);
+	assert.equal(config.models[0].id, "zai-glm-4.7");
+	assert.equal(config.models[0].name, "GLM-4.7 Cerebras");
+	assert.equal(config.models[0].baseUrl, CEREBRAS_BASE_URL);
+	assert.equal(config.models[0].apiKey, "cerebras-key");
 	assert.equal(
 		config.models.some((model) => model.id === "glm-5"),
 		false,
 	);
 });
 
-test("buildZaiProviderConfig supports overriding base URL for z.ai endpoint", () => {
+test("buildZaiProviderConfig registers ZAI models when ZAI_API_KEY is set", () => {
 	const config = buildConfig({
-		PI_ZAI_CUSTOM_BASE_URL: ZAI_CODING_BASE_URL,
+		ZAI_API_KEY: "zai-key",
 	});
 
-	assert.equal(config.baseUrl, ZAI_CODING_BASE_URL);
+	assert.equal(config.models.length, 2);
+	assert.equal(config.models[0].id, "glm-4.7");
+	assert.equal(config.models[0].name, "GLM 4.7 ZAI");
+	assert.equal(config.models[0].baseUrl, ZAI_BASE_URL);
+	assert.equal(config.models[0].apiKey, "zai-key");
+	assert.equal(config.models[1].id, "glm-5");
+	assert.equal(config.models[1].name, "GLM-5 (ZAI)");
+	assert.equal(config.models[1].baseUrl, ZAI_BASE_URL);
+	assert.equal(config.models[1].apiKey, "zai-key");
 });
 
-test("buildZaiProviderConfig registers ZAI-native model IDs on z.ai endpoint", () => {
+test("buildZaiProviderConfig registers both model sets when both keys are set", () => {
 	const config = buildConfig({
-		PI_ZAI_CUSTOM_BASE_URL: ZAI_CODING_BASE_URL,
+		CEREBRAS_API_KEY: "cerebras-key",
+		ZAI_API_KEY: "zai-key",
 	});
 
-	assert.equal(config.models?.[0]?.id, "glm-4.7");
-	assert.equal(config.models?.[0]?.name, "GLM 4.7 ZAI");
-	assert.equal(config.models?.[1]?.id, "glm-5");
-	assert.equal(config.models?.[1]?.name, "GLM-5 (ZAI)");
-	assert.equal(config.models?.[1]?.reasoning, true);
-});
-
-test("buildZaiProviderConfig ignores legacy PI_ZAI_BASE_URL env format", () => {
-	const config = buildConfig({
-		PI_ZAI_BASE_URL: "https://legacy.example.invalid",
-	});
-
-	assert.equal(config.baseUrl, DEFAULT_ZAI_BASE_URL);
-});
-
-test("buildZaiProviderConfig ignores legacy ZAI_BASE_URL env format", () => {
-	const config = buildConfig({
-		ZAI_BASE_URL: "https://legacy.example.invalid",
-	});
-
-	assert.equal(config.baseUrl, DEFAULT_ZAI_BASE_URL);
-});
-
-test("buildZaiProviderConfig supports API key from PI_ZAI_API_KEY, ZAI_API_KEY, and CEREBRAS_API_KEY", () => {
-	assert.equal(buildConfig({ PI_ZAI_API_KEY: "pi-key" }).apiKey, "pi-key");
-	assert.equal(buildConfig({ ZAI_API_KEY: "zai-key" }).apiKey, "zai-key");
+	assert.equal(config.models.length, 3);
 	assert.equal(
-		buildConfig({ CEREBRAS_API_KEY: "cerebras-key" }).apiKey,
-		"cerebras-key",
+		config.models.some(
+			(model) =>
+				model.id === "zai-glm-4.7" &&
+				model.baseUrl === CEREBRAS_BASE_URL &&
+				model.apiKey === "cerebras-key",
+		),
+		true,
+	);
+	assert.equal(
+		config.models.some(
+			(model) =>
+				model.id === "glm-4.7" &&
+				model.baseUrl === ZAI_BASE_URL &&
+				model.apiKey === "zai-key",
+		),
+		true,
+	);
+	assert.equal(
+		config.models.some(
+			(model) =>
+				model.id === "glm-5" &&
+				model.baseUrl === ZAI_BASE_URL &&
+				model.apiKey === "zai-key",
+		),
+		true,
 	);
 });
 
-test("buildZaiProviderConfig prefers CEREBRAS_API_KEY on Cerebras endpoints when both keys are present", () => {
+test("buildZaiProviderConfig ignores PI_ZAI_API_KEY and legacy ZAI_CUSTOM_API_KEY", () => {
 	const config = buildConfig({
-		ZAI_API_KEY: "zai-key",
-		CEREBRAS_API_KEY: "cerebras-key",
+		PI_ZAI_API_KEY: "legacy-explicit-key",
+		ZAI_CUSTOM_API_KEY: "legacy-custom-key",
 	});
 
-	assert.equal(config.apiKey, "cerebras-key");
+	assert.equal(config.models.length, 0);
 });
 
-test("buildZaiProviderConfig prefers ZAI_API_KEY on z.ai endpoints when both keys are present", () => {
+test("buildZaiProviderConfig ignores all base-url env overrides", () => {
 	const config = buildConfig({
-		PI_ZAI_CUSTOM_BASE_URL: ZAI_CODING_BASE_URL,
-		ZAI_API_KEY: "zai-key",
 		CEREBRAS_API_KEY: "cerebras-key",
+		PI_ZAI_CUSTOM_BASE_URL: "https://api.z.ai/api/coding/paas/v4",
+		PI_ZAI_BASE_URL: "https://legacy.example.invalid",
+		ZAI_BASE_URL: "https://legacy.example.invalid",
 	});
 
-	assert.equal(config.apiKey, "zai-key");
+	assert.equal(config.baseUrl, CEREBRAS_BASE_URL);
+	assert.equal(config.models[0].baseUrl, CEREBRAS_BASE_URL);
 });
 
-test("buildZaiProviderConfig ignores legacy ZAI_CUSTOM_API_KEY when modern keys exist", () => {
-	const config = buildConfig({
-		ZAI_CUSTOM_API_KEY: "legacy-key",
-		CEREBRAS_API_KEY: "cerebras-key",
-	});
-
-	assert.equal(config.apiKey, "cerebras-key");
-});
-
-test("applyZaiPayloadKnobs injects temperature/top_p/clear_thinking for Cerebras", () => {
+test("applyZaiPayloadKnobs injects temperature/top_p/clear_thinking", () => {
 	const payload = applyKnobsWithRuntime();
 
 	assertPayloadKnobs(payload);
 });
 
-test("applyZaiPayloadKnobs respects clear_thinking knob for Cerebras", () => {
+test("applyZaiPayloadKnobs respects clear_thinking knob", () => {
 	const payload = applyKnobsWithRuntime({ clearThinking: true });
 
 	assertPayloadKnobs(payload, DEFAULT_TEMPERATURE, DEFAULT_TOP_P, true);
 });
 
-test("applyZaiPayloadKnobs respects clear_thinking knob for z.ai endpoints", () => {
-	const payload = applyKnobsWithRuntime({
-		clearThinking: true,
-		zaiBaseUrl: ZAI_CODING_BASE_URL,
+test("createZaiStreamSimple routes Cerebras model IDs to Cerebras endpoint and key", () => {
+	const recorder = createCapturedInvocationRecorder();
+	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
+		CEREBRAS_API_KEY: "cerebras-key",
+		ZAI_API_KEY: "zai-key",
 	});
 
-	assertPayloadKnobs(payload, DEFAULT_TEMPERATURE, DEFAULT_TOP_P, true);
+	streamSimple(createTestModel("zai-glm-4.7"), { messages: [] }, {});
+
+	const capturedModel = recorder.getCapturedModel();
+	assert.equal(capturedModel?.baseUrl, CEREBRAS_BASE_URL);
+	assert.equal(capturedModel?.apiKey, "cerebras-key");
+});
+
+test("createZaiStreamSimple routes ZAI model IDs to ZAI endpoint and key", () => {
+	const recorder = createCapturedInvocationRecorder();
+	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
+		CEREBRAS_API_KEY: "cerebras-key",
+		ZAI_API_KEY: "zai-key",
+	});
+
+	streamSimple(createTestModel("glm-5"), { messages: [] }, {});
+
+	const capturedModel = recorder.getCapturedModel();
+	assert.equal(capturedModel?.baseUrl, ZAI_BASE_URL);
+	assert.equal(capturedModel?.apiKey, "zai-key");
 });
 
 test("createZaiStreamSimple enforces payload knobs while preserving caller onPayload", () => {
-	const recorder = createCapturedOptionsRecorder();
+	const recorder = createCapturedInvocationRecorder();
 	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
 		PI_TEMPERATURE: "0.42",
 		PI_ZAI_CUSTOM_TOP_P: "0.84",
 		PI_ZAI_CUSTOM_CLEAR_THINKING: "true",
-		PI_ZAI_CUSTOM_BASE_URL: ZAI_CODING_BASE_URL,
+		ZAI_API_KEY: "zai-key",
 	});
 
 	let callerOnPayloadSeen = false;
 	streamSimple(
-		createTestModel(),
+		createTestModel("glm-4.7"),
 		{ messages: [] },
 		{
 			onPayload(payload) {
@@ -245,14 +276,15 @@ test("createZaiStreamSimple enforces payload knobs while preserving caller onPay
 });
 
 test("createZaiStreamSimple ignores legacy non-PI ZAI knob env formats", () => {
-	const recorder = createCapturedOptionsRecorder();
+	const recorder = createCapturedInvocationRecorder();
 	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
 		ZAI_TEMPERATURE: "0.01",
 		ZAI_TOP_P: "0.02",
 		ZAI_CLEAR_THINKING: "true",
+		ZAI_API_KEY: "zai-key",
 	});
 
-	streamSimple(createTestModel(), { messages: [] }, {});
+	streamSimple(createTestModel("glm-4.7"), { messages: [] }, {});
 
 	const capturedOptions = recorder.getCapturedOptions();
 	assert.equal(capturedOptions?.temperature, DEFAULT_TEMPERATURE);
@@ -265,15 +297,16 @@ test("createZaiStreamSimple ignores legacy non-PI ZAI knob env formats", () => {
 });
 
 test("createZaiStreamSimple ignores legacy PI_ZAI_TEMPERATURE/PI_ZAI_TOP_P/PI_ZAI_CLEAR_THINKING/PI_ZAI_BASE_URL env formats", () => {
-	const recorder = createCapturedOptionsRecorder();
+	const recorder = createCapturedInvocationRecorder();
 	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
 		PI_ZAI_TEMPERATURE: "0.01",
 		PI_ZAI_TOP_P: "0.02",
 		PI_ZAI_CLEAR_THINKING: "true",
 		PI_ZAI_BASE_URL: "https://legacy.example.invalid",
+		ZAI_API_KEY: "zai-key",
 	});
 
-	streamSimple(createTestModel(), { messages: [] }, {});
+	streamSimple(createTestModel("glm-4.7"), { messages: [] }, {});
 
 	const capturedOptions = recorder.getCapturedOptions();
 	assert.equal(capturedOptions?.temperature, DEFAULT_TEMPERATURE);
@@ -286,9 +319,10 @@ test("createZaiStreamSimple ignores legacy PI_ZAI_TEMPERATURE/PI_ZAI_TOP_P/PI_ZA
 });
 
 test("createZaiStreamSimple env PI_TEMPERATURE overrides options temperature", () => {
-	const recorder = createCapturedOptionsRecorder();
+	const recorder = createCapturedInvocationRecorder();
 	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
 		PI_TEMPERATURE: "0.42",
+		CEREBRAS_API_KEY: "cerebras-key",
 	});
 
 	streamSimple(createTestModel(), { messages: [] }, { temperature: 0.75 });
@@ -304,9 +338,10 @@ test("createZaiStreamSimple env PI_TEMPERATURE overrides options temperature", (
 });
 
 test("createZaiStreamSimple env PI_ZAI_CUSTOM_TOP_P overrides options top_p", () => {
-	const recorder = createCapturedOptionsRecorder();
+	const recorder = createCapturedInvocationRecorder();
 	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
 		PI_ZAI_CUSTOM_TOP_P: "0.84",
+		CEREBRAS_API_KEY: "cerebras-key",
 	});
 
 	streamSimple(createTestModel(), { messages: [] }, { top_p: 0.5 });
@@ -324,9 +359,10 @@ test("createZaiStreamSimple env PI_ZAI_CUSTOM_TOP_P overrides options top_p", ()
 });
 
 test("createZaiStreamSimple treats empty string PI_TEMPERATURE as undefined, falls back to default", () => {
-	const recorder = createCapturedOptionsRecorder();
+	const recorder = createCapturedInvocationRecorder();
 	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
 		PI_TEMPERATURE: "",
+		CEREBRAS_API_KEY: "cerebras-key",
 	});
 
 	streamSimple(createTestModel(), { messages: [] }, {});
@@ -342,9 +378,10 @@ test("createZaiStreamSimple treats empty string PI_TEMPERATURE as undefined, fal
 });
 
 test("createZaiStreamSimple treats empty string PI_ZAI_CUSTOM_TOP_P as undefined, falls back to default", () => {
-	const recorder = createCapturedOptionsRecorder();
+	const recorder = createCapturedInvocationRecorder();
 	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
 		PI_ZAI_CUSTOM_TOP_P: "",
+		CEREBRAS_API_KEY: "cerebras-key",
 	});
 
 	streamSimple(createTestModel(), { messages: [] }, {});
@@ -360,9 +397,10 @@ test("createZaiStreamSimple treats empty string PI_ZAI_CUSTOM_TOP_P as undefined
 });
 
 test("createZaiStreamSimple treats empty string PI_ZAI_CUSTOM_CLEAR_THINKING as undefined, falls back to default", () => {
-	const recorder = createCapturedOptionsRecorder();
+	const recorder = createCapturedInvocationRecorder();
 	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
 		PI_ZAI_CUSTOM_CLEAR_THINKING: "",
+		CEREBRAS_API_KEY: "cerebras-key",
 	});
 
 	streamSimple(createTestModel(), { messages: [] }, {});
@@ -375,12 +413,4 @@ test("createZaiStreamSimple treats empty string PI_ZAI_CUSTOM_CLEAR_THINKING as 
 		payload,
 	);
 	assertPayloadKnobs(payload);
-});
-
-test("createZaiStreamSimple treats empty string PI_ZAI_CUSTOM_BASE_URL as undefined, falls back to default", () => {
-	const config = buildConfig({
-		PI_ZAI_CUSTOM_BASE_URL: "",
-	});
-
-	assert.equal(config.baseUrl, DEFAULT_ZAI_BASE_URL);
 });

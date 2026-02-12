@@ -1,27 +1,36 @@
 # Custom Provider: ZAI
 
-A custom provider extension for the ZAI/Cerebras AI API, providing access to the GLM-4.7 model with specialized reasoning support.
+A custom provider extension that exposes ZAI-family models from two upstream hosts:
+
+- **Cerebras-hosted models** (requires `CEREBRAS_API_KEY`)
+- **ZAI-hosted models** (requires `ZAI_API_KEY`)
+
+Model availability is determined strictly by which provider API keys are present.
 
 ## Features
 
-- **GLM-4.7 Model**: High-performance model with 204K context window and up to 131K max tokens
-- **Reasoning Support**: Built-in thinking format support for transparent reasoning
-- **Flexible Configuration**: Configure sampling parameters via environment variables or options
-- **Cost Tracking**: Detailed token and cost metrics (cache read/write supported)
+- **Key-based model availability**
+  - `CEREBRAS_API_KEY` => Cerebras model set
+  - `ZAI_API_KEY` => ZAI model set
+  - Both keys => both model sets
+- **Model-driven endpoint routing**
+  - `zai-custom/<model-id>` is enough to choose the right base URL and API key
+- **Reasoning + sampling knobs**
+  - Supports `temperature`, `top_p`, and `clear_thinking`
 
 ## Configuration
 
 ### Environment Variables
 
-| Variable                       | Description                                   | Default                    |
-|--------------------------------|-----------------------------------------------|----------------------------|
-| `PI_ZAI_API_KEY`               | Explicit API key for ZAI provider             | -                          |
-| `ZAI_API_KEY`                  | ZAI-specific API key                          | -                          |
-| `CEREBRAS_API_KEY`             | Cerebras API key (fallback)                   | -                          |
-| `PI_TEMPERATURE`               | Generic temperature (shared across providers) | -                          |
-| `PI_ZAI_CUSTOM_TOP_P`          | Top-p sampling parameter                      | 0.95                       |
-| `PI_ZAI_CUSTOM_CLEAR_THINKING` | Clear thinking output                         | false                      |
-| `PI_ZAI_CUSTOM_BASE_URL`       | Custom base URL                               | https://api.cerebras.ai/v1 |
+| Variable                       | Description                                              | Default |
+|--------------------------------|----------------------------------------------------------|---------|
+| `CEREBRAS_API_KEY`             | Required for Cerebras-hosted models                      | -       |
+| `ZAI_API_KEY`                  | Required for ZAI-hosted models                           | -       |
+| `PI_TEMPERATURE`               | Generic temperature (shared across providers)            | 0.9     |
+| `PI_ZAI_CUSTOM_TOP_P`          | Top-p sampling parameter                                 | 0.95    |
+| `PI_ZAI_CUSTOM_CLEAR_THINKING` | Clear thinking output                                    | false   |
+
+> `PI_ZAI_API_KEY` and base URL overrides are intentionally unsupported.
 
 ### Runtime Options
 
@@ -33,24 +42,46 @@ When invoking the provider, you can pass these options:
 
 ## Usage
 
-The provider is automatically registered as `zai-custom`. To use it:
+The provider is registered as `zai-custom`.
 
 ```bash
-# Set your API key
-export ZAI_API_KEY="your-api-key"
-
-# Or use Cerebras
+# Cerebras-hosted models only
 export CEREBRAS_API_KEY="your-cerebras-key"
 
-# Use the provider with custom knobs
-PI_ZAI_CUSTOM_TOP_P=0.8 PI_ZAI_CUSTOM_CLEAR_THINKING=true pi
+# ZAI-hosted models only
+export ZAI_API_KEY="your-zai-key"
+
+# Both model sets
+export CEREBRAS_API_KEY="your-cerebras-key"
+export ZAI_API_KEY="your-zai-key"
 ```
 
-## Model Details
+## Model Matrix
 
-**GLM-4.7** (`zai-glm-4.7`):
+### Cerebras-hosted
+
+**GLM-4.7 Cerebras** (`zai-glm-4.7`)
+- Endpoint: `https://api.cerebras.ai/v1`
 - Context Window: 204,800 tokens
 - Max Output: 131,072 tokens
 - Input Cost: $0.60 / 1M tokens
 - Output Cost: $2.20 / 1M tokens
 - Cache Read: $0.11 / 1M tokens
+
+### ZAI-hosted
+
+**GLM 4.7 ZAI** (`glm-4.7`)
+- Endpoint: `https://api.z.ai/api/coding/paas/v4`
+- Context Window: 204,800 tokens
+- Max Output: 131,072 tokens
+- Input Cost: $0.60 / 1M tokens
+- Output Cost: $2.20 / 1M tokens
+- Cache Read: $0.11 / 1M tokens
+
+**GLM-5 (ZAI)** (`glm-5`)
+- Endpoint: `https://api.z.ai/api/coding/paas/v4`
+- Context Window: 200,000 tokens
+- Max Output: 128,000 tokens
+- Input Cost: $0.15 / 1M tokens
+- Output Cost: $0.60 / 1M tokens
+- Cache Read: $0.00 / 1M tokens
