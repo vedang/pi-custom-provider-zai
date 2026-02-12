@@ -20,6 +20,7 @@ export interface ZaiSimpleOptions {
 	topP?: number;
 	clear_thinking?: boolean;
 	clearThinking?: boolean;
+	apiKey?: string;
 	onPayload?: (payload: unknown) => void;
 	[key: string]: unknown;
 }
@@ -361,6 +362,12 @@ export function applyZaiPayloadKnobs(
  * [ref:zai_custom_env_knob_contract]
  * Subagent frontmatter knobs are threaded into child processes via env vars,
  * then consumed here for per-role provider behavior.
+ *
+ * [tag:zai_custom_routed_api_key_precedence]
+ * `streamSimpleOpenAICompletions` prioritizes `options.apiKey` over `model.apiKey`.
+ * After model-ID routing, we must mirror the routed key into options so mixed
+ * provider environments (both CEREBRAS_API_KEY and ZAI_API_KEY) authenticate
+ * against the endpoint selected by model ID.
  */
 export function createZaiStreamSimple(
 	baseStreamSimple: ZaiStreamSimple,
@@ -369,8 +376,15 @@ export function createZaiStreamSimple(
 	return (model, context, options) => {
 		const runtime = resolveZaiRuntimeSettings(env, options);
 		const callerOnPayload = options?.onPayload;
+		const routedModel = routeModelToProviderEndpoint(model, env);
+		const routedApiKey =
+			routedModel && typeof routedModel === "object"
+				? parseOptionalString((routedModel as Record<string, unknown>).apiKey)
+				: undefined;
 		const wrappedOptions: ZaiSimpleOptions = {
 			...options,
+			// [ref:zai_custom_routed_api_key_precedence]
+			...(routedApiKey ? { apiKey: routedApiKey } : {}),
 			temperature: runtime.temperature,
 			onPayload: (payload: unknown) => {
 				callerOnPayload?.(payload);
@@ -378,7 +392,6 @@ export function createZaiStreamSimple(
 				applyZaiPayloadKnobs(payload, runtime);
 			},
 		};
-		const routedModel = routeModelToProviderEndpoint(model, env);
 		return baseStreamSimple(routedModel, context, wrappedOptions);
 	};
 }

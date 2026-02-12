@@ -259,6 +259,44 @@ test("createZaiStreamSimple routes ZAI model IDs to ZAI endpoint and key", () =>
 	assert.equal(capturedModel?.apiKey, "zai-key");
 });
 
+test("createZaiStreamSimple overrides caller apiKey with routed ZAI key for ZAI model IDs", () => {
+	const recorder = createCapturedInvocationRecorder();
+	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
+		CEREBRAS_API_KEY: "cerebras-key",
+		ZAI_API_KEY: "zai-key",
+	});
+
+	streamSimple(
+		createTestModel("glm-5"),
+		{ messages: [] },
+		{ apiKey: "cerebras-key" },
+	);
+
+	const capturedModel = recorder.getCapturedModel();
+	const capturedOptions = recorder.getCapturedOptions();
+	assert.equal(capturedModel?.apiKey, "zai-key");
+	assert.equal(capturedOptions?.apiKey, "zai-key");
+});
+
+test("createZaiStreamSimple overrides caller apiKey with routed Cerebras key for Cerebras model IDs", () => {
+	const recorder = createCapturedInvocationRecorder();
+	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
+		CEREBRAS_API_KEY: "cerebras-key",
+		ZAI_API_KEY: "zai-key",
+	});
+
+	streamSimple(
+		createTestModel("zai-glm-4.7"),
+		{ messages: [] },
+		{ apiKey: "zai-key" },
+	);
+
+	const capturedModel = recorder.getCapturedModel();
+	const capturedOptions = recorder.getCapturedOptions();
+	assert.equal(capturedModel?.apiKey, "cerebras-key");
+	assert.equal(capturedOptions?.apiKey, "cerebras-key");
+});
+
 test("createZaiStreamSimple enforces payload knobs while preserving caller onPayload", () => {
 	const recorder = createCapturedInvocationRecorder();
 	const streamSimple = createZaiStreamSimple(recorder.baseStream as never, {
