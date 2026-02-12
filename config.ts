@@ -128,14 +128,41 @@ const GLM_5_ZAI_MODEL: ZaiModelTemplate = {
 	},
 };
 
+interface ProviderRuntimeConfig {
+	baseUrl: string;
+	apiKeyEnvKey: "CEREBRAS_API_KEY" | "ZAI_API_KEY";
+}
+
+const PROVIDER_RUNTIME_CONFIG: Record<ZaiModelProvider, ProviderRuntimeConfig> =
+	{
+		cerebras: {
+			baseUrl: CEREBRAS_BASE_URL,
+			apiKeyEnvKey: "CEREBRAS_API_KEY",
+		},
+		zai: {
+			baseUrl: ZAI_BASE_URL,
+			apiKeyEnvKey: "ZAI_API_KEY",
+		},
+	};
+
+const MODEL_TEMPLATES_BY_PROVIDER: Record<
+	ZaiModelProvider,
+	ZaiModelTemplate[]
+> = {
+	cerebras: [GLM_4_7_CEREBRAS_MODEL],
+	zai: [GLM_4_7_ZAI_MODEL, GLM_5_ZAI_MODEL],
+};
+
+// GLM-5 is expected to be hosted on Cerebras soon under `zai-glm-5`.
 const CEREBRAS_MODEL_IDS = new Set<string>([
-	GLM_4_7_CEREBRAS_MODEL.id,
+	...MODEL_TEMPLATES_BY_PROVIDER.cerebras.map((model) => model.id),
 	"zai-glm-5",
 ]);
-const ZAI_MODEL_IDS = new Set<string>([
-	GLM_4_7_ZAI_MODEL.id,
-	GLM_5_ZAI_MODEL.id,
-]);
+const ZAI_MODEL_IDS = new Set<string>(
+	MODEL_TEMPLATES_BY_PROVIDER.zai.map((model) => model.id),
+);
+
+const MODEL_PROVIDER_ORDER: ZaiModelProvider[] = ["cerebras", "zai"];
 
 function parseOptionalNumber(value: unknown): number | undefined {
 	if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -245,14 +272,12 @@ function resolveProviderApiKey(
 	env: Record<string, string | undefined>,
 	provider: ZaiModelProvider,
 ): string | undefined {
-	if (provider === "cerebras") {
-		return parseOptionalString(env.CEREBRAS_API_KEY);
-	}
-	return parseOptionalString(env.ZAI_API_KEY);
+	const runtimeConfig = PROVIDER_RUNTIME_CONFIG[provider];
+	return parseOptionalString(env[runtimeConfig.apiKeyEnvKey]);
 }
 
 function resolveProviderBaseUrl(provider: ZaiModelProvider): string {
-	return provider === "cerebras" ? CEREBRAS_BASE_URL : ZAI_BASE_URL;
+	return PROVIDER_RUNTIME_CONFIG[provider].baseUrl;
 }
 
 function materializeModel(
@@ -281,13 +306,13 @@ function resolveModels(
 ): ZaiProviderModelConfig[] {
 	const models: ZaiProviderModelConfig[] = [];
 
-	const cerebrasModel = materializeModel(GLM_4_7_CEREBRAS_MODEL, env);
-	if (cerebrasModel) models.push(cerebrasModel);
-
-	const zaiModels = [GLM_4_7_ZAI_MODEL, GLM_5_ZAI_MODEL]
-		.map((template) => materializeModel(template, env))
-		.filter((model): model is ZaiProviderModelConfig => model !== undefined);
-	models.push(...zaiModels);
+	for (const provider of MODEL_PROVIDER_ORDER) {
+		const templates = MODEL_TEMPLATES_BY_PROVIDER[provider];
+		for (const template of templates) {
+			const model = materializeModel(template, env);
+			if (model !== undefined) models.push(model);
+		}
+	}
 
 	return models;
 }
@@ -361,12 +386,13 @@ export function createZaiStreamSimple(
 function resolveProviderFallbackApiKey(
 	env: Record<string, string | undefined>,
 ): string {
-	return (
-		firstDefined(
-			parseOptionalString(env.CEREBRAS_API_KEY),
-			parseOptionalString(env.ZAI_API_KEY),
-		) ?? API_KEY_ENV_PLACEHOLDER
-	);
+	const cerebrasKey = resolveProviderApiKey(env, "cerebras");
+	if (cerebrasKey) return cerebrasKey;
+
+	const zaiKey = resolveProviderApiKey(env, "zai");
+	if (zaiKey) return zaiKey;
+
+	return API_KEY_ENV_PLACEHOLDER;
 }
 
 export function buildZaiProviderConfig(
