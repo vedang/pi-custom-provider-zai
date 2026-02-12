@@ -22,23 +22,21 @@ Model availability is determined strictly by which provider API keys are present
 
 ### Environment Variables
 
-| Variable                       | Description                                              | Default |
-|--------------------------------|----------------------------------------------------------|---------|
-| `CEREBRAS_API_KEY`             | Required for Cerebras-hosted models                      | -       |
-| `ZAI_API_KEY`                  | Required for ZAI-hosted models                           | -       |
-| `PI_TEMPERATURE`               | Generic temperature (shared across providers)            | 0.9     |
-| `PI_ZAI_CUSTOM_TOP_P`          | Top-p sampling parameter                                 | 0.95    |
-| `PI_ZAI_CUSTOM_CLEAR_THINKING` | Clear thinking output                                    | false   |
-
-> `PI_ZAI_API_KEY` and base URL overrides are intentionally unsupported.
+| Variable                       | Description                         | Default |
+|--------------------------------|-------------------------------------|---------|
+| `CEREBRAS_API_KEY`             | Required for Cerebras-hosted models | -       |
+| `ZAI_API_KEY`                  | Required for ZAI-hosted models      | -       |
+| `PI_TEMPERATURE`               | Generic temperature                 | 0.9     |
+| `PI_ZAI_CUSTOM_TOP_P`          | Top-p sampling parameter            | 0.95    |
+| `PI_ZAI_CUSTOM_CLEAR_THINKING` | Clear thinking output               | false   |
 
 ### Runtime Options
 
 When invoking the provider, you can pass these options:
 
 - `temperature`: Sampling temperature (0.0-2.0)
-- `top_p` / `topP`: Nucleus sampling parameter
-- `clear_thinking` / `clearThinking`: Whether to clear thinking output
+- `top_p`: Nucleus sampling parameter
+- `clear_thinking`: Whether to clear thinking output
 
 ## Usage
 
