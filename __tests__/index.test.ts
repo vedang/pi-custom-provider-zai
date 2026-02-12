@@ -102,13 +102,18 @@ test("index extension registers zai-custom provider", () => {
 	assert.match(source, /registerProvider\([\s\S]*"zai-custom"/);
 });
 
-test("buildZaiProviderConfig registers zai-glm-4.7 and default Cerebras URL", () => {
+test("buildZaiProviderConfig registers GLM-4.7 Cerebras on default Cerebras URL", () => {
 	const config = buildConfig();
 
 	assert.equal(config.baseUrl, DEFAULT_ZAI_BASE_URL);
 	assert.equal(config.api, "openai-completions");
 	assert.equal(config.models?.[0]?.id, "zai-glm-4.7");
+	assert.equal(config.models?.[0]?.name, "GLM-4.7 Cerebras");
 	assert.equal(config.models?.[0]?.reasoning, false);
+	assert.equal(
+		config.models.some((model) => model.id === "glm-5"),
+		false,
+	);
 });
 
 test("buildZaiProviderConfig supports overriding base URL for z.ai endpoint", () => {
@@ -117,6 +122,18 @@ test("buildZaiProviderConfig supports overriding base URL for z.ai endpoint", ()
 	});
 
 	assert.equal(config.baseUrl, ZAI_CODING_BASE_URL);
+});
+
+test("buildZaiProviderConfig registers ZAI-native model IDs on z.ai endpoint", () => {
+	const config = buildConfig({
+		PI_ZAI_CUSTOM_BASE_URL: ZAI_CODING_BASE_URL,
+	});
+
+	assert.equal(config.models?.[0]?.id, "glm-4.7");
+	assert.equal(config.models?.[0]?.name, "GLM 4.7 ZAI");
+	assert.equal(config.models?.[1]?.id, "glm-5");
+	assert.equal(config.models?.[1]?.name, "GLM-5 (ZAI)");
+	assert.equal(config.models?.[1]?.reasoning, true);
 });
 
 test("buildZaiProviderConfig ignores legacy PI_ZAI_BASE_URL env format", () => {

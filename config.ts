@@ -59,9 +59,9 @@ export interface ZaiProviderConfig {
 	models: ZaiProviderModelConfig[];
 }
 
-const ZAI_GLM_4_7_MODEL: ZaiProviderModelConfig = {
+const GLM_4_7_CEREBRAS_MODEL: ZaiProviderModelConfig = {
 	id: "zai-glm-4.7",
-	name: "ZAI GLM-4.7",
+	name: "GLM-4.7 Cerebras",
 	reasoning: false,
 	input: ["text"],
 	cost: {
@@ -72,6 +72,44 @@ const ZAI_GLM_4_7_MODEL: ZaiProviderModelConfig = {
 	},
 	contextWindow: 204800,
 	maxTokens: 131072,
+	compat: {
+		supportsDeveloperRole: false,
+		thinkingFormat: "zai",
+	},
+};
+
+const GLM_4_7_ZAI_MODEL: ZaiProviderModelConfig = {
+	id: "glm-4.7",
+	name: "GLM 4.7 ZAI",
+	reasoning: false,
+	input: ["text"],
+	cost: {
+		input: 0.6,
+		output: 2.2,
+		cacheRead: 0.11,
+		cacheWrite: 0,
+	},
+	contextWindow: 204800,
+	maxTokens: 131072,
+	compat: {
+		supportsDeveloperRole: false,
+		thinkingFormat: "zai",
+	},
+};
+
+const GLM_5_ZAI_MODEL: ZaiProviderModelConfig = {
+	id: "glm-5",
+	name: "GLM-5 (ZAI)",
+	reasoning: true,
+	input: ["text"],
+	cost: {
+		input: 0.15,
+		output: 0.6,
+		cacheRead: 0,
+		cacheWrite: 0,
+	},
+	contextWindow: 200000,
+	maxTokens: 128000,
 	compat: {
 		supportsDeveloperRole: false,
 		thinkingFormat: "zai",
@@ -240,6 +278,14 @@ function resolveApiKey(
 	return selectedKey ?? API_KEY_ENV_PLACEHOLDER;
 }
 
+function resolveModels(baseUrl: string): ZaiProviderModelConfig[] {
+	if (isZaiEndpoint(baseUrl)) {
+		return [GLM_4_7_ZAI_MODEL, GLM_5_ZAI_MODEL];
+	}
+	// GLM-5 is currently unavailable on Cerebras; expected ID once available: `zai-glm-5`.
+	return [GLM_4_7_CEREBRAS_MODEL];
+}
+
 export function buildZaiProviderConfig(
 	input: ZaiProviderConfigInput,
 	env: Record<string, string | undefined> = process.env,
@@ -250,6 +296,6 @@ export function buildZaiProviderConfig(
 		apiKey: resolveApiKey(env, runtime.zaiBaseUrl),
 		api: "openai-completions",
 		streamSimple: input.streamSimple,
-		models: [ZAI_GLM_4_7_MODEL],
+		models: resolveModels(runtime.zaiBaseUrl),
 	};
 }
