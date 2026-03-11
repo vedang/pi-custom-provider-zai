@@ -1,0 +1,6 @@
+{
+  "$schema": "https://unpkg.com/jscpd@4/schema/jscpd.schema.json",
+  "reporters": ["console"],
+  "threshold": 0,
+  "absolute": true
+}

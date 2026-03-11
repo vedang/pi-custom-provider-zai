@@ -1,0 +1,10 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/index.ts",
+    "vitest.config.integration.ts",
+    "vitest.config.llm.ts"
+  ],
+  "project": ["src/core.ts", "__tests__/**/*.ts"],
+  "ignoreDependencies": ["@biomejs/biome", "jscpd"]
+}
