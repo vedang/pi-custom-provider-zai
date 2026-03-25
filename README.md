@@ -1,5 +1,9 @@
 # Custom Provider: ZAI
 
+<p align="center">
+  <img src="images/banner.png" alt="pi-custom-provider-zai hero banner" width="100%">
+</p>
+
 A custom provider extension that exposes ZAI-family models from two upstream hosts:
 
 - **Cerebras-hosted models** (requires `CEREBRAS_API_KEY`)
