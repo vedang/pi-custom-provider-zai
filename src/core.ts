@@ -69,7 +69,7 @@ interface ZaiModelTemplate
   provider: ZaiModelProvider;
 }
 
-interface ZaiProviderConfig {
+export interface ZaiProviderConfig {
   baseUrl: string;
   apiKey: string;
   api: "openai-completions";
@@ -77,84 +77,56 @@ interface ZaiProviderConfig {
   models: ZaiProviderModelConfig[];
 }
 
+const SHARED_MODEL_DEFAULTS = {
+  input: ["text"] as ["text"],
+  compat: {
+    supportsDeveloperRole: false as const,
+    thinkingFormat: "zai" as const,
+  },
+};
+
 const GLM_4_7_CEREBRAS_MODEL: ZaiModelTemplate = {
+  ...SHARED_MODEL_DEFAULTS,
   provider: "cerebras",
   id: "zai-glm-4.7",
   name: "GLM-4.7 Cerebras",
   reasoning: false,
-  input: ["text"],
-  cost: {
-    input: 0,
-    output: 0,
-    cacheRead: 0,
-    cacheWrite: 0,
-  },
-  contextWindow: 131072,
-  maxTokens: 40000,
-  compat: {
-    supportsDeveloperRole: false,
-    thinkingFormat: "zai",
-  },
+  cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  contextWindow: 131_072,
+  maxTokens: 40_000,
 };
 
 const GLM_4_7_ZAI_MODEL: ZaiModelTemplate = {
+  ...SHARED_MODEL_DEFAULTS,
   provider: "zai",
   id: "glm-4.7",
   name: "GLM 4.7 ZAI",
   reasoning: true,
-  input: ["text"],
-  cost: {
-    input: 0.6,
-    output: 2.2,
-    cacheRead: 0.11,
-    cacheWrite: 0,
-  },
-  contextWindow: 204800,
-  maxTokens: 131072,
-  compat: {
-    supportsDeveloperRole: false,
-    thinkingFormat: "zai",
-  },
+  cost: { input: 0.6, output: 2.2, cacheRead: 0.11, cacheWrite: 0 },
+  contextWindow: 204_800,
+  maxTokens: 131_072,
 };
 
 const GLM_5_ZAI_MODEL: ZaiModelTemplate = {
+  ...SHARED_MODEL_DEFAULTS,
   provider: "zai",
   id: "glm-5",
   name: "GLM-5 (ZAI)",
   reasoning: true,
-  input: ["text"],
-  cost: {
-    input: 0.15,
-    output: 0.6,
-    cacheRead: 0,
-    cacheWrite: 0,
-  },
-  contextWindow: 200000,
-  maxTokens: 128000,
-  compat: {
-    supportsDeveloperRole: false,
-    thinkingFormat: "zai",
-  },
+  cost: { input: 0.15, output: 0.6, cacheRead: 0, cacheWrite: 0 },
+  contextWindow: 200_000,
+  maxTokens: 128_000,
 };
 
 const GLM_5_TURBO_ZAI_MODEL: ZaiModelTemplate = {
+  ...SHARED_MODEL_DEFAULTS,
   provider: "zai",
   id: "glm-5-turbo",
   name: "GLM-5 Turbo (ZAI)",
   reasoning: true,
-  input: ["text"],
-  cost: {
-    input: 1.2,
-    output: 4.0,
-    cacheRead: 0,
-    cacheWrite: 0,
-  },
-  contextWindow: 200000,
-  maxTokens: 128000,
-  compat: {
-    supportsDeveloperRole: false,
-    thinkingFormat: "zai",
-  },
+  cost: { input: 1.2, output: 4.0, cacheRead: 0, cacheWrite: 0 },
+  contextWindow: 200_000,
+  maxTokens: 128_000,
 };
 
 interface ProviderRuntimeConfig {
