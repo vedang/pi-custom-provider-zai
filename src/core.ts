@@ -137,6 +137,26 @@ const GLM_5_ZAI_MODEL: ZaiModelTemplate = {
   },
 };
 
+const GLM_5_TURBO_ZAI_MODEL: ZaiModelTemplate = {
+  provider: "zai",
+  id: "glm-5-turbo",
+  name: "GLM-5 Turbo (ZAI)",
+  reasoning: true,
+  input: ["text"],
+  cost: {
+    input: 1.2,
+    output: 4.0,
+    cacheRead: 0,
+    cacheWrite: 0,
+  },
+  contextWindow: 200000,
+  maxTokens: 128000,
+  compat: {
+    supportsDeveloperRole: false,
+    thinkingFormat: "zai",
+  },
+};
+
 interface ProviderRuntimeConfig {
   baseUrl: string;
   apiKeyEnvKey: "CEREBRAS_API_KEY" | "ZAI_API_KEY";
@@ -159,7 +179,7 @@ const MODEL_TEMPLATES_BY_PROVIDER: Record<
   ZaiModelTemplate[]
 > = {
   cerebras: [GLM_4_7_CEREBRAS_MODEL],
-  zai: [GLM_4_7_ZAI_MODEL, GLM_5_ZAI_MODEL],
+  zai: [GLM_4_7_ZAI_MODEL, GLM_5_ZAI_MODEL, GLM_5_TURBO_ZAI_MODEL],
 };
 
 // GLM-5 is expected to be hosted on Cerebras soon under `zai-glm-5`.

@@ -165,7 +165,7 @@ test("buildZaiProviderConfig registers ZAI models when ZAI_API_KEY is set", () =
     ZAI_API_KEY: "zai-key",
   });
 
-  assert.equal(config.models.length, 2);
+  assert.equal(config.models.length, 3);
   assert.equal(config.models[0].id, "glm-4.7");
   assert.equal(config.models[0].name, "GLM 4.7 ZAI");
   assert.equal(config.models[0].reasoning, true);
@@ -183,6 +183,17 @@ test("buildZaiProviderConfig registers ZAI models when ZAI_API_KEY is set", () =
   assert.equal(config.models[1].name, "GLM-5 (ZAI)");
   assert.equal(config.models[1].baseUrl, ZAI_BASE_URL);
   assert.equal(config.models[1].apiKey, "zai-key");
+  assert.equal(config.models[2].id, "glm-5-turbo");
+  assert.equal(config.models[2].name, "GLM-5 Turbo (ZAI)");
+  assert.equal(config.models[2].reasoning, true);
+  assert.equal(config.models[2].baseUrl, ZAI_BASE_URL);
+  assert.equal(config.models[2].apiKey, "zai-key");
+  assert.deepEqual(config.models[2].cost, {
+    input: 1.2,
+    output: 4.0,
+    cacheRead: 0,
+    cacheWrite: 0,
+  });
 });
 
 test("buildZaiProviderConfig registers both model sets when both keys are set", () => {
@@ -191,7 +202,7 @@ test("buildZaiProviderConfig registers both model sets when both keys are set", 
     ZAI_API_KEY: "zai-key",
   });
 
-  assert.equal(config.models.length, 3);
+  assert.equal(config.models.length, 4);
   assert.equal(
     config.models.some(
       (model) =>
@@ -214,6 +225,15 @@ test("buildZaiProviderConfig registers both model sets when both keys are set", 
     config.models.some(
       (model) =>
         model.id === "glm-5" &&
+        model.baseUrl === ZAI_BASE_URL &&
+        model.apiKey === "zai-key",
+    ),
+    true,
+  );
+  assert.equal(
+    config.models.some(
+      (model) =>
+        model.id === "glm-5-turbo" &&
         model.baseUrl === ZAI_BASE_URL &&
         model.apiKey === "zai-key",
     ),
