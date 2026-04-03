@@ -53,11 +53,12 @@ export ZAI_API_KEY="your-zai-key"
 
 ## Model IDs (use these with `zai-custom/<model-id>`)
 
-| model_id      | Hosted by | Enabled when key is present | Example selector           |
-|---------------|-----------|-----------------------------|----------------------------|
-| `zai-glm-4.7` | Cerebras  | `CEREBRAS_API_KEY`          | `zai-custom/zai-glm-4.7`   |
-| `glm-4.7`     | ZAI       | `ZAI_API_KEY`               | `zai-custom/glm-4.7`       |
-| `glm-5`       | ZAI       | `ZAI_API_KEY`               | `zai-custom/glm-5`         |
+| model_id        | Hosted by | Enabled when key is present | Example selector             |
+|-----------------|-----------|-----------------------------|------------------------------|
+| `zai-glm-4.7`   | Cerebras  | `CEREBRAS_API_KEY`          | `zai-custom/zai-glm-4.7`     |
+| `glm-4.7`       | ZAI       | `ZAI_API_KEY`               | `zai-custom/glm-4.7`         |
+| `glm-5`         | ZAI       | `ZAI_API_KEY`               | `zai-custom/glm-5`           |
+| `glm-5-turbo`   | ZAI       | `ZAI_API_KEY`               | `zai-custom/glm-5-turbo`     |
 
 ## Model Matrix
 
@@ -90,4 +91,13 @@ export ZAI_API_KEY="your-zai-key"
 - Max Output: 128,000 tokens
 - Input Cost: $0.15 / 1M tokens
 - Output Cost: $0.60 / 1M tokens
+- Cache Read: $0.00 / 1M tokens
+
+**GLM-5 Turbo (ZAI)** (`glm-5-turbo`)
+- Endpoint: `https://api.z.ai/api/coding/paas/v4`
+- Reasoning: true
+- Context Window: 200,000 tokens
+- Max Output: 128,000 tokens
+- Input Cost: $1.20 / 1M tokens
+- Output Cost: $4.00 / 1M tokens
 - Cache Read: $0.00 / 1M tokens
