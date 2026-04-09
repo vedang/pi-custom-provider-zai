@@ -190,7 +190,7 @@ test("buildZaiProviderConfig registers ZAI models when ZAI_API_KEY is set", () =
     ZAI_API_KEY: "zai-key",
   });
 
-  assert.equal(config.models.length, 3);
+  assert.equal(config.models.length, 4);
   assertModelProps(config.models[0], {
     id: "glm-4.7",
     name: "GLM 4.7 ZAI",
@@ -209,6 +209,15 @@ test("buildZaiProviderConfig registers ZAI models when ZAI_API_KEY is set", () =
     baseUrl: ZAI_BASE_URL,
     apiKey: "zai-key",
     cost: { input: 1.2, output: 4.0, cacheRead: 0, cacheWrite: 0 },
+  });
+  assert.equal(config.models[3].id, "glm-5.1");
+  assertModelProps(config.models[3], {
+    id: "glm-5.1",
+    name: "GLM-5.1 (ZAI)",
+    reasoning: true,
+    baseUrl: ZAI_BASE_URL,
+    apiKey: "zai-key",
+    cost: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 },
   });
 });
 
@@ -238,7 +247,7 @@ test("buildZaiProviderConfig registers both model sets when both keys are set", 
     ZAI_API_KEY: "zai-key",
   });
 
-  assert.equal(config.models.length, 4);
+  assert.equal(config.models.length, 5);
   assertHasModel(config.models, {
     id: "zai-glm-4.7",
     baseUrl: CEREBRAS_BASE_URL,
@@ -256,6 +265,11 @@ test("buildZaiProviderConfig registers both model sets when both keys are set", 
   });
   assertHasModel(config.models, {
     id: "glm-5-turbo",
+    baseUrl: ZAI_BASE_URL,
+    apiKey: "zai-key",
+  });
+  assertHasModel(config.models, {
+    id: "glm-5.1",
     baseUrl: ZAI_BASE_URL,
     apiKey: "zai-key",
   });
@@ -313,7 +327,7 @@ test("createZaiStreamSimple routes ZAI model IDs to ZAI endpoint and key", () =>
     ZAI_API_KEY: "zai-key",
   });
 
-  streamSimple(createTestModel("glm-5"), { messages: [] }, {});
+  streamSimple(createTestModel("glm-5.1"), { messages: [] }, {});
 
   const capturedModel = recorder.getCapturedModel();
   assert.equal(capturedModel?.baseUrl, ZAI_BASE_URL);
@@ -327,7 +341,7 @@ test("createZaiStreamSimple overrides caller apiKey with routed ZAI key for ZAI 
   });
 
   streamSimple(
-    createTestModel("glm-5"),
+    createTestModel("glm-5.1"),
     { messages: [] },
     { apiKey: "cerebras-key" },
   );
