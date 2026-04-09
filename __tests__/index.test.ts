@@ -123,21 +123,23 @@ function createStreamRecorderWithEnv(env: Record<string, string | undefined>) {
   };
 }
 
+type ExpectedModelProps = {
+  id: string;
+  name: string;
+  reasoning: boolean;
+  baseUrl: string;
+  apiKey: string;
+  cost: {
+    input: number;
+    output: number;
+    cacheRead: number;
+    cacheWrite: number;
+  };
+};
+
 function assertModelProps(
   model: ZaiProviderConfig["models"][number],
-  expected: {
-    id: string;
-    name: string;
-    reasoning: boolean;
-    baseUrl: string;
-    apiKey: string;
-    cost: {
-      input: number;
-      output: number;
-      cacheRead: number;
-      cacheWrite: number;
-    };
-  },
+  expected: ExpectedModelProps,
 ) {
   assert.equal(model.id, expected.id);
   assert.equal(model.name, expected.name);
@@ -145,6 +147,16 @@ function assertModelProps(
   assert.equal(model.baseUrl, expected.baseUrl);
   assert.equal(model.apiKey, expected.apiKey);
   assert.deepEqual(model.cost, expected.cost);
+}
+
+function assertModelList(
+  models: ZaiProviderConfig["models"],
+  expectedModels: ExpectedModelProps[],
+) {
+  assert.equal(models.length, expectedModels.length);
+  for (const [index, expectedModel] of expectedModels.entries()) {
+    assertModelProps(models[index], expectedModel);
+  }
 }
 
 test("index extension registers zai-custom provider", () => {
@@ -189,36 +201,42 @@ test("buildZaiProviderConfig registers ZAI models when ZAI_API_KEY is set", () =
   const config = buildConfig({
     ZAI_API_KEY: "zai-key",
   });
+  const expectedModels: ExpectedModelProps[] = [
+    {
+      id: "glm-4.7",
+      name: "GLM 4.7 ZAI",
+      reasoning: true,
+      baseUrl: ZAI_BASE_URL,
+      apiKey: "zai-key",
+      cost: { input: 0.6, output: 2.2, cacheRead: 0.11, cacheWrite: 0 },
+    },
+    {
+      id: "glm-5",
+      name: "GLM-5 (ZAI)",
+      reasoning: true,
+      baseUrl: ZAI_BASE_URL,
+      apiKey: "zai-key",
+      cost: { input: 0.15, output: 0.6, cacheRead: 0, cacheWrite: 0 },
+    },
+    {
+      id: "glm-5-turbo",
+      name: "GLM-5 Turbo (ZAI)",
+      reasoning: true,
+      baseUrl: ZAI_BASE_URL,
+      apiKey: "zai-key",
+      cost: { input: 1.2, output: 4.0, cacheRead: 0, cacheWrite: 0 },
+    },
+    {
+      id: "glm-5.1",
+      name: "GLM-5.1 (ZAI)",
+      reasoning: true,
+      baseUrl: ZAI_BASE_URL,
+      apiKey: "zai-key",
+      cost: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 },
+    },
+  ];
 
-  assert.equal(config.models.length, 4);
-  assertModelProps(config.models[0], {
-    id: "glm-4.7",
-    name: "GLM 4.7 ZAI",
-    reasoning: true,
-    baseUrl: ZAI_BASE_URL,
-    apiKey: "zai-key",
-    cost: { input: 0.6, output: 2.2, cacheRead: 0.11, cacheWrite: 0 },
-  });
-  assert.equal(config.models[1].id, "glm-5");
-  assert.equal(config.models[1].baseUrl, ZAI_BASE_URL);
-  assert.equal(config.models[2].id, "glm-5-turbo");
-  assertModelProps(config.models[2], {
-    id: "glm-5-turbo",
-    name: "GLM-5 Turbo (ZAI)",
-    reasoning: true,
-    baseUrl: ZAI_BASE_URL,
-    apiKey: "zai-key",
-    cost: { input: 1.2, output: 4.0, cacheRead: 0, cacheWrite: 0 },
-  });
-  assert.equal(config.models[3].id, "glm-5.1");
-  assertModelProps(config.models[3], {
-    id: "glm-5.1",
-    name: "GLM-5.1 (ZAI)",
-    reasoning: true,
-    baseUrl: ZAI_BASE_URL,
-    apiKey: "zai-key",
-    cost: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 },
-  });
+  assertModelList(config.models, expectedModels);
 });
 
 function assertHasModel(
@@ -241,38 +259,54 @@ function assertHasModel(
   );
 }
 
+function assertHasModels(
+  models: ZaiProviderConfig["models"],
+  expectedModels: Array<{
+    id: string;
+    baseUrl: string;
+    apiKey: string;
+  }>,
+) {
+  assert.equal(models.length, expectedModels.length);
+  for (const expectedModel of expectedModels) {
+    assertHasModel(models, expectedModel);
+  }
+}
+
 test("buildZaiProviderConfig registers both model sets when both keys are set", () => {
   const config = buildConfig({
     CEREBRAS_API_KEY: "cerebras-key",
     ZAI_API_KEY: "zai-key",
   });
+  const expectedModels = [
+    {
+      id: "zai-glm-4.7",
+      baseUrl: CEREBRAS_BASE_URL,
+      apiKey: "cerebras-key",
+    },
+    {
+      id: "glm-4.7",
+      baseUrl: ZAI_BASE_URL,
+      apiKey: "zai-key",
+    },
+    {
+      id: "glm-5",
+      baseUrl: ZAI_BASE_URL,
+      apiKey: "zai-key",
+    },
+    {
+      id: "glm-5-turbo",
+      baseUrl: ZAI_BASE_URL,
+      apiKey: "zai-key",
+    },
+    {
+      id: "glm-5.1",
+      baseUrl: ZAI_BASE_URL,
+      apiKey: "zai-key",
+    },
+  ];
 
-  assert.equal(config.models.length, 5);
-  assertHasModel(config.models, {
-    id: "zai-glm-4.7",
-    baseUrl: CEREBRAS_BASE_URL,
-    apiKey: "cerebras-key",
-  });
-  assertHasModel(config.models, {
-    id: "glm-4.7",
-    baseUrl: ZAI_BASE_URL,
-    apiKey: "zai-key",
-  });
-  assertHasModel(config.models, {
-    id: "glm-5",
-    baseUrl: ZAI_BASE_URL,
-    apiKey: "zai-key",
-  });
-  assertHasModel(config.models, {
-    id: "glm-5-turbo",
-    baseUrl: ZAI_BASE_URL,
-    apiKey: "zai-key",
-  });
-  assertHasModel(config.models, {
-    id: "glm-5.1",
-    baseUrl: ZAI_BASE_URL,
-    apiKey: "zai-key",
-  });
+  assertHasModels(config.models, expectedModels);
 });
 
 test("buildZaiProviderConfig ignores PI_ZAI_API_KEY and legacy ZAI_CUSTOM_API_KEY", () => {
