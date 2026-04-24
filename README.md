@@ -11,6 +11,16 @@ A custom provider extension that exposes ZAI-family models from two upstream hos
 
 Model availability is determined strictly by which provider API keys are present.
 
+## Install
+
+```bash
+# Install globally
+pi install git:github.com/vedang/pi-custom-provider-zai
+
+# Or install for just the current project
+pi install -l git:github.com/vedang/pi-custom-provider-zai
+```
+
 ## Features
 
 - **Key-based model availability**
