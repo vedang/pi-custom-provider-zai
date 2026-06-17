@@ -5,7 +5,8 @@
   "type": "module",
   "keywords": ["pi-package", "pi", "extension", "provider", "zai", "cerebras"],
   "pi": {
-    "extensions": ["./src/index.ts"]
+    "extensions": ["./src/index.ts"],
+    "image": "https://raw.githubusercontent.com/vedang/pi-custom-provider-zai/main/images/banner.png"
   },
   "files": ["src/index.ts", "src/core.ts"],
   "scripts": {
