@@ -140,6 +140,17 @@ const GLM_5_1_ZAI_MODEL: ZaiModelTemplate = {
   maxTokens: 128_000,
 };
 
+const GLM_5_2_ZAI_MODEL: ZaiModelTemplate = {
+  ...SHARED_MODEL_DEFAULTS,
+  provider: "zai",
+  id: "glm-5.2",
+  name: "GLM-5.2 (ZAI)",
+  reasoning: true,
+  cost: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 },
+  contextWindow: 1_000_000,
+  maxTokens: 128_000,
+};
+
 interface ProviderRuntimeConfig {
   baseUrl: string;
   apiKeyEnvKey: "CEREBRAS_API_KEY" | "ZAI_API_KEY";
@@ -167,6 +178,7 @@ const MODEL_TEMPLATES_BY_PROVIDER: Record<
     GLM_5_ZAI_MODEL,
     GLM_5_TURBO_ZAI_MODEL,
     GLM_5_1_ZAI_MODEL,
+    GLM_5_2_ZAI_MODEL,
   ],
 };
 

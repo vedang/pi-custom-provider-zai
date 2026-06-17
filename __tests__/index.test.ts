@@ -135,6 +135,8 @@ type ExpectedModelProps = {
     cacheRead: number;
     cacheWrite: number;
   };
+  contextWindow?: number;
+  maxTokens?: number;
 };
 
 function assertModelProps(
@@ -147,6 +149,12 @@ function assertModelProps(
   assert.equal(model.baseUrl, expected.baseUrl);
   assert.equal(model.apiKey, expected.apiKey);
   assert.deepEqual(model.cost, expected.cost);
+  if (expected.contextWindow !== undefined) {
+    assert.equal(model.contextWindow, expected.contextWindow);
+  }
+  if (expected.maxTokens !== undefined) {
+    assert.equal(model.maxTokens, expected.maxTokens);
+  }
 }
 
 function assertModelList(
@@ -234,6 +242,16 @@ test("buildZaiProviderConfig registers ZAI models when ZAI_API_KEY is set", () =
       apiKey: "zai-key",
       cost: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 },
     },
+    {
+      id: "glm-5.2",
+      name: "GLM-5.2 (ZAI)",
+      reasoning: true,
+      baseUrl: ZAI_BASE_URL,
+      apiKey: "zai-key",
+      cost: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 },
+      contextWindow: 1_000_000,
+      maxTokens: 128_000,
+    },
   ];
 
   assertModelList(config.models, expectedModels);
@@ -304,6 +322,11 @@ test("buildZaiProviderConfig registers both model sets when both keys are set", 
       baseUrl: ZAI_BASE_URL,
       apiKey: "zai-key",
     },
+    {
+      id: "glm-5.2",
+      baseUrl: ZAI_BASE_URL,
+      apiKey: "zai-key",
+    },
   ];
 
   assertHasModels(config.models, expectedModels);
@@ -361,7 +384,7 @@ test("createZaiStreamSimple routes ZAI model IDs to ZAI endpoint and key", () =>
     ZAI_API_KEY: "zai-key",
   });
 
-  streamSimple(createTestModel("glm-5.1"), { messages: [] }, {});
+  streamSimple(createTestModel("glm-5.2"), { messages: [] }, {});
 
   const capturedModel = recorder.getCapturedModel();
   assert.equal(capturedModel?.baseUrl, ZAI_BASE_URL);
