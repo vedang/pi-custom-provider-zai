@@ -1,9 +1,6 @@
-import {
-  type Model,
-  type SimpleStreamOptions,
-  streamSimpleOpenAICompletions,
-} from "@mariozechner/pi-ai";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { Model, SimpleStreamOptions } from "@earendil-works/pi-ai";
+import { streamSimple } from "@earendil-works/pi-ai/api/openai-completions";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
   type ZaiStreamSimple,
   buildZaiProviderConfig,
@@ -15,7 +12,7 @@ const streamSimpleViaOpenAICompletions: ZaiStreamSimple = (
   context,
   options,
 ) => {
-  return streamSimpleOpenAICompletions(
+  return streamSimple(
     model as Model<"openai-completions">,
     context,
     options as SimpleStreamOptions,

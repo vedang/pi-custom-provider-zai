@@ -29,6 +29,10 @@ pi install -l git:github.com/vedang/pi-custom-provider-zai
   - Both keys => both model sets
 - **Model-driven endpoint routing**
   - `zai-custom/<model-id>` is enough to choose the right base URL and API key
+  - Provider is registered once; auth key used for registration is `$CEREBRAS_API_KEY` when present, otherwise `$ZAI_API_KEY`
+- **Model metadata**
+  - ZAI models use OpenAI-compatible `zai`-style metadata (`supportsDeveloperRole: false`, `supportsStore: false`, `thinkingFormat: "zai"`, `zaiToolStream: true`)
+  - `glm-5.2` explicitly supports `supportsReasoningEffort` and custom thinking map
 - **Reasoning + sampling knobs**
   - Supports `temperature`, `top_p`, and `clear_thinking`
 

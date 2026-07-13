@@ -42,7 +42,6 @@ function createTestModel(id = "zai-glm-4.7") {
     provider: "zai-custom",
     api: "openai-completions",
     baseUrl: "https://example.invalid/v1",
-    apiKey: "placeholder-key",
     reasoning: false,
     input: ["text"] as Array<"text" | "image">,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -103,13 +102,13 @@ function applyKnobsWithRuntime(
   return payload;
 }
 
-function invokeCapturedOnPayload(
+async function invokeCapturedOnPayload(
   capturedOptions: Record<string, unknown> | undefined,
-): Record<string, unknown> {
+): Promise<Record<string, unknown>> {
   const payload: Record<string, unknown> = {};
-  (capturedOptions?.onPayload as ((payload: unknown) => void) | undefined)?.(
-    payload,
-  );
+  await (
+    capturedOptions?.onPayload as ((payload: unknown) => unknown) | undefined
+  )?.(payload);
   return payload;
 }
 
@@ -128,7 +127,6 @@ type ExpectedModelProps = {
   name: string;
   reasoning: boolean;
   baseUrl: string;
-  apiKey: string;
   cost: {
     input: number;
     output: number;
@@ -147,7 +145,7 @@ function assertModelProps(
   assert.equal(model.name, expected.name);
   assert.equal(model.reasoning, expected.reasoning);
   assert.equal(model.baseUrl, expected.baseUrl);
-  assert.equal(model.apiKey, expected.apiKey);
+  assert.equal("apiKey" in model, false);
   assert.deepEqual(model.cost, expected.cost);
   if (expected.contextWindow !== undefined) {
     assert.equal(model.contextWindow, expected.contextWindow);
@@ -172,25 +170,27 @@ test("index extension registers zai-custom provider", () => {
   assert.match(source, /registerProvider\([\s\S]*"zai-custom"/);
 });
 
-test("buildZaiProviderConfig returns no models when no provider keys are configured", () => {
+test("buildZaiProviderConfig returns no models or ambiguous key when no provider keys are configured", () => {
   const config = buildConfig();
 
   assert.equal(config.api, "openai-completions");
   assert.equal(config.baseUrl, CEREBRAS_BASE_URL);
+  assert.equal(config.apiKey, undefined);
   assert.equal(config.models.length, 0);
 });
 
-test("buildZaiProviderConfig registers Cerebras models when CEREBRAS_API_KEY is set", () => {
+test("buildZaiProviderConfig registers Cerebras models with an env key reference", () => {
   const config = buildConfig({
     CEREBRAS_API_KEY: "cerebras-key",
   });
 
+  assert.equal(config.apiKey, "$CEREBRAS_API_KEY");
   assert.equal(config.models.length, 1);
   assert.equal(config.models[0].id, "zai-glm-4.7");
   assert.equal(config.models[0].name, "GLM-4.7 Cerebras");
   assert.equal(config.models[0].reasoning, false);
   assert.equal(config.models[0].baseUrl, CEREBRAS_BASE_URL);
-  assert.equal(config.models[0].apiKey, "cerebras-key");
+  assert.equal("apiKey" in config.models[0], false);
   assert.deepEqual(config.models[0].cost, {
     input: 0,
     output: 0,
@@ -205,7 +205,7 @@ test("buildZaiProviderConfig registers Cerebras models when CEREBRAS_API_KEY is 
   );
 });
 
-test("buildZaiProviderConfig registers ZAI models when ZAI_API_KEY is set", () => {
+test("buildZaiProviderConfig registers ZAI models with modern thinking metadata", () => {
   const config = buildConfig({
     ZAI_API_KEY: "zai-key",
   });
@@ -215,7 +215,6 @@ test("buildZaiProviderConfig registers ZAI models when ZAI_API_KEY is set", () =
       name: "GLM 4.7 ZAI",
       reasoning: true,
       baseUrl: ZAI_BASE_URL,
-      apiKey: "zai-key",
       cost: { input: 0.6, output: 2.2, cacheRead: 0.11, cacheWrite: 0 },
     },
     {
@@ -223,7 +222,6 @@ test("buildZaiProviderConfig registers ZAI models when ZAI_API_KEY is set", () =
       name: "GLM-5 (ZAI)",
       reasoning: true,
       baseUrl: ZAI_BASE_URL,
-      apiKey: "zai-key",
       cost: { input: 0.15, output: 0.6, cacheRead: 0, cacheWrite: 0 },
     },
     {
@@ -231,7 +229,6 @@ test("buildZaiProviderConfig registers ZAI models when ZAI_API_KEY is set", () =
       name: "GLM-5 Turbo (ZAI)",
       reasoning: true,
       baseUrl: ZAI_BASE_URL,
-      apiKey: "zai-key",
       cost: { input: 1.2, output: 4.0, cacheRead: 0, cacheWrite: 0 },
     },
     {
@@ -239,7 +236,6 @@ test("buildZaiProviderConfig registers ZAI models when ZAI_API_KEY is set", () =
       name: "GLM-5.1 (ZAI)",
       reasoning: true,
       baseUrl: ZAI_BASE_URL,
-      apiKey: "zai-key",
       cost: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 },
     },
     {
@@ -247,14 +243,21 @@ test("buildZaiProviderConfig registers ZAI models when ZAI_API_KEY is set", () =
       name: "GLM-5.2 (ZAI)",
       reasoning: true,
       baseUrl: ZAI_BASE_URL,
-      apiKey: "zai-key",
       cost: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 },
       contextWindow: 1_000_000,
       maxTokens: 128_000,
     },
   ];
 
+  assert.equal(config.apiKey, "$ZAI_API_KEY");
   assertModelList(config.models, expectedModels);
+  assert.deepEqual(config.models.at(-1)?.thinkingLevelMap, {
+    minimal: null,
+    low: "high",
+    medium: "high",
+    high: "high",
+    max: "max",
+  });
 });
 
 function assertHasModel(
@@ -262,15 +265,11 @@ function assertHasModel(
   expected: {
     id: string;
     baseUrl: string;
-    apiKey: string;
   },
 ) {
   assert.equal(
     models.some(
-      (m) =>
-        m.id === expected.id &&
-        m.baseUrl === expected.baseUrl &&
-        m.apiKey === expected.apiKey,
+      (model) => model.id === expected.id && model.baseUrl === expected.baseUrl,
     ),
     true,
     `Expected to find model with id=${expected.id}`,
@@ -282,53 +281,33 @@ function assertHasModels(
   expectedModels: Array<{
     id: string;
     baseUrl: string;
-    apiKey: string;
   }>,
 ) {
   assert.equal(models.length, expectedModels.length);
   for (const expectedModel of expectedModels) {
     assertHasModel(models, expectedModel);
   }
+  assert.equal(
+    models.some((model) => "apiKey" in model),
+    false,
+  );
 }
 
-test("buildZaiProviderConfig registers both model sets when both keys are set", () => {
+test("buildZaiProviderConfig registers both model sets with one explicit provider key reference", () => {
   const config = buildConfig({
     CEREBRAS_API_KEY: "cerebras-key",
     ZAI_API_KEY: "zai-key",
   });
   const expectedModels = [
-    {
-      id: "zai-glm-4.7",
-      baseUrl: CEREBRAS_BASE_URL,
-      apiKey: "cerebras-key",
-    },
-    {
-      id: "glm-4.7",
-      baseUrl: ZAI_BASE_URL,
-      apiKey: "zai-key",
-    },
-    {
-      id: "glm-5",
-      baseUrl: ZAI_BASE_URL,
-      apiKey: "zai-key",
-    },
-    {
-      id: "glm-5-turbo",
-      baseUrl: ZAI_BASE_URL,
-      apiKey: "zai-key",
-    },
-    {
-      id: "glm-5.1",
-      baseUrl: ZAI_BASE_URL,
-      apiKey: "zai-key",
-    },
-    {
-      id: "glm-5.2",
-      baseUrl: ZAI_BASE_URL,
-      apiKey: "zai-key",
-    },
+    { id: "zai-glm-4.7", baseUrl: CEREBRAS_BASE_URL },
+    { id: "glm-4.7", baseUrl: ZAI_BASE_URL },
+    { id: "glm-5", baseUrl: ZAI_BASE_URL },
+    { id: "glm-5-turbo", baseUrl: ZAI_BASE_URL },
+    { id: "glm-5.1", baseUrl: ZAI_BASE_URL },
+    { id: "glm-5.2", baseUrl: ZAI_BASE_URL },
   ];
 
+  assert.equal(config.apiKey, "$CEREBRAS_API_KEY");
   assertHasModels(config.models, expectedModels);
 });
 
@@ -365,7 +344,7 @@ test("applyZaiPayloadKnobs respects clear_thinking knob", () => {
   assertPayloadKnobs(payload, DEFAULT_TEMPERATURE, DEFAULT_TOP_P, true);
 });
 
-test("createZaiStreamSimple routes Cerebras model IDs to Cerebras endpoint and key", () => {
+test("createZaiStreamSimple routes Cerebras model IDs to Cerebras endpoint and request key", () => {
   const { recorder, streamSimple } = createStreamRecorderWithEnv({
     CEREBRAS_API_KEY: "cerebras-key",
     ZAI_API_KEY: "zai-key",
@@ -374,11 +353,13 @@ test("createZaiStreamSimple routes Cerebras model IDs to Cerebras endpoint and k
   streamSimple(createTestModel("zai-glm-4.7"), { messages: [] }, {});
 
   const capturedModel = recorder.getCapturedModel();
+  const capturedOptions = recorder.getCapturedOptions();
   assert.equal(capturedModel?.baseUrl, CEREBRAS_BASE_URL);
-  assert.equal(capturedModel?.apiKey, "cerebras-key");
+  assert.equal("apiKey" in (capturedModel ?? {}), false);
+  assert.equal(capturedOptions?.apiKey, "cerebras-key");
 });
 
-test("createZaiStreamSimple routes ZAI model IDs to ZAI endpoint and key", () => {
+test("createZaiStreamSimple routes ZAI model IDs to ZAI endpoint and request key", () => {
   const { recorder, streamSimple } = createStreamRecorderWithEnv({
     CEREBRAS_API_KEY: "cerebras-key",
     ZAI_API_KEY: "zai-key",
@@ -387,8 +368,10 @@ test("createZaiStreamSimple routes ZAI model IDs to ZAI endpoint and key", () =>
   streamSimple(createTestModel("glm-5.2"), { messages: [] }, {});
 
   const capturedModel = recorder.getCapturedModel();
+  const capturedOptions = recorder.getCapturedOptions();
   assert.equal(capturedModel?.baseUrl, ZAI_BASE_URL);
-  assert.equal(capturedModel?.apiKey, "zai-key");
+  assert.equal("apiKey" in (capturedModel ?? {}), false);
+  assert.equal(capturedOptions?.apiKey, "zai-key");
 });
 
 test("createZaiStreamSimple overrides caller apiKey with routed ZAI key for ZAI model IDs", () => {
@@ -405,7 +388,7 @@ test("createZaiStreamSimple overrides caller apiKey with routed ZAI key for ZAI 
 
   const capturedModel = recorder.getCapturedModel();
   const capturedOptions = recorder.getCapturedOptions();
-  assert.equal(capturedModel?.apiKey, "zai-key");
+  assert.equal("apiKey" in (capturedModel ?? {}), false);
   assert.equal(capturedOptions?.apiKey, "zai-key");
 });
 
@@ -423,11 +406,38 @@ test("createZaiStreamSimple overrides caller apiKey with routed Cerebras key for
 
   const capturedModel = recorder.getCapturedModel();
   const capturedOptions = recorder.getCapturedOptions();
-  assert.equal(capturedModel?.apiKey, "cerebras-key");
+  assert.equal("apiKey" in (capturedModel ?? {}), false);
   assert.equal(capturedOptions?.apiKey, "cerebras-key");
 });
 
-test("createZaiStreamSimple enforces payload knobs while preserving caller onPayload", () => {
+test("createZaiStreamSimple applies knobs to async caller payload replacements", async () => {
+  const { recorder, streamSimple } = createStreamRecorderWithEnv({
+    ZAI_API_KEY: "zai-key",
+  });
+  const replacement = { fromReplacement: true };
+
+  streamSimple(
+    createTestModel("glm-4.7"),
+    { messages: [] },
+    {
+      async onPayload() {
+        return replacement;
+      },
+    },
+  );
+
+  const capturedOptions = recorder.getCapturedOptions();
+  const returnedPayload = await (
+    capturedOptions?.onPayload as
+      | ((payload: unknown, model: unknown) => unknown)
+      | undefined
+  )?.({}, createTestModel("glm-4.7"));
+
+  assert.equal(returnedPayload, replacement);
+  assertPayloadKnobs(replacement);
+});
+
+test("createZaiStreamSimple enforces payload knobs while preserving caller onPayload", async () => {
   const { recorder, streamSimple } = createStreamRecorderWithEnv({
     PI_TEMPERATURE: "0.42",
     PI_ZAI_CUSTOM_TOP_P: "0.84",
@@ -450,14 +460,14 @@ test("createZaiStreamSimple enforces payload knobs while preserving caller onPay
   const capturedOptions = recorder.getCapturedOptions();
   assert.equal(capturedOptions?.temperature, 0.42);
 
-  const payload = invokeCapturedOnPayload(capturedOptions);
+  const payload = await invokeCapturedOnPayload(capturedOptions);
 
   assert.equal(callerOnPayloadSeen, true);
   assert.equal(payload.fromCaller, true);
   assertPayloadKnobs(payload, 0.42, 0.84, true);
 });
 
-test("createZaiStreamSimple ignores legacy env knob formats", () => {
+test("createZaiStreamSimple ignores legacy env knob formats", async () => {
   const legacyEnvCases = [
     {
       ZAI_TEMPERATURE: "0.01",
@@ -481,11 +491,11 @@ test("createZaiStreamSimple ignores legacy env knob formats", () => {
 
     const capturedOptions = recorder.getCapturedOptions();
     assert.equal(capturedOptions?.temperature, DEFAULT_TEMPERATURE);
-    assertPayloadKnobs(invokeCapturedOnPayload(capturedOptions));
+    assertPayloadKnobs(await invokeCapturedOnPayload(capturedOptions));
   }
 });
 
-test("createZaiStreamSimple env knobs override or preserve option behavior as expected", () => {
+test("createZaiStreamSimple env knobs override or preserve option behavior as expected", async () => {
   const cases = [
     {
       env: {
@@ -528,11 +538,11 @@ test("createZaiStreamSimple env knobs override or preserve option behavior as ex
 
     const capturedOptions = recorder.getCapturedOptions();
     testCase.assertCapturedOptions(capturedOptions);
-    testCase.assertPayload(invokeCapturedOnPayload(capturedOptions));
+    testCase.assertPayload(await invokeCapturedOnPayload(capturedOptions));
   }
 });
 
-test("createZaiStreamSimple treats empty string env knob values as undefined", () => {
+test("createZaiStreamSimple treats empty string env knob values as undefined", async () => {
   const emptyValueCases = [
     { PI_TEMPERATURE: "", CEREBRAS_API_KEY: "cerebras-key" },
     { PI_ZAI_CUSTOM_TOP_P: "", CEREBRAS_API_KEY: "cerebras-key" },
@@ -546,6 +556,6 @@ test("createZaiStreamSimple treats empty string env knob values as undefined", (
 
     const capturedOptions = recorder.getCapturedOptions();
     assert.equal(capturedOptions?.temperature, DEFAULT_TEMPERATURE);
-    assertPayloadKnobs(invokeCapturedOnPayload(capturedOptions));
+    assertPayloadKnobs(await invokeCapturedOnPayload(capturedOptions));
   }
 });

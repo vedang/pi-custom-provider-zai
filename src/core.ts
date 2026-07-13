@@ -4,7 +4,8 @@ import type {
   Context,
   Model,
   SimpleStreamOptions,
-} from "@mariozechner/pi-ai";
+  ThinkingLevelMap,
+} from "@earendil-works/pi-ai";
 
 export const CEREBRAS_BASE_URL = "https://api.cerebras.ai/v1";
 export const ZAI_BASE_URL = "https://api.z.ai/api/coding/paas/v4";
@@ -12,9 +13,15 @@ export const DEFAULT_TEMPERATURE = 0.9;
 export const DEFAULT_TOP_P = 0.95;
 export const DEFAULT_CLEAR_THINKING = false;
 
-const API_KEY_ENV_PLACEHOLDER = "CEREBRAS_API_KEY or ZAI_API_KEY";
+const CEREBRAS_API_KEY_ENV = "CEREBRAS_API_KEY";
+const ZAI_API_KEY_ENV = "ZAI_API_KEY";
 
 type ZaiModelProvider = "cerebras" | "zai";
+
+interface ModelRoutingResult {
+  model: unknown;
+  apiKey: string | undefined;
+}
 
 export interface ZaiRuntimeSettings {
   temperature: number;
@@ -27,8 +34,8 @@ export interface ZaiSimpleOptions
   temperature?: number;
   top_p?: number;
   topP?: number;
-  clear_thinking?: boolean;
   clearThinking?: boolean;
+  clear_thinking?: boolean;
   apiKey?: string;
   onPayload?: (payload: unknown, model: Model<Api>) => unknown;
 }
@@ -43,7 +50,7 @@ interface ZaiProviderConfigInput {
   streamSimple: ZaiStreamSimple;
 }
 
-interface ZaiProviderModelConfig {
+interface ZaiProviderModelTemplate {
   id: string;
   name: string;
   reasoning: boolean;
@@ -56,33 +63,54 @@ interface ZaiProviderModelConfig {
   };
   contextWindow: number;
   maxTokens: number;
-  compat: {
-    supportsDeveloperRole: false;
-    thinkingFormat: "zai";
-  };
-  baseUrl: string;
-  apiKey: string;
-}
-
-interface ZaiModelTemplate
-  extends Omit<ZaiProviderModelConfig, "baseUrl" | "apiKey"> {
-  provider: ZaiModelProvider;
+  compat: Model<Api>["compat"];
+  thinkingLevelMap?: ThinkingLevelMap;
 }
 
 export interface ZaiProviderConfig {
   baseUrl: string;
-  apiKey: string;
+  apiKey?: string;
   api: "openai-completions";
   streamSimple: ZaiStreamSimple;
   models: ZaiProviderModelConfig[];
 }
 
+interface ZaiProviderModelConfig extends ZaiProviderModelTemplate {
+  baseUrl: string;
+}
+
+interface ZaiModelTemplate extends ZaiProviderModelTemplate {
+  provider: ZaiModelProvider;
+}
+
+const ZAI_THINKING_LEVEL_MAP_5_2 = {
+  minimal: null,
+  low: "high",
+  medium: "high",
+  high: "high",
+  max: "max",
+} satisfies ThinkingLevelMap;
+
+const CEREBRAS_COMPAT = {
+  supportsStore: false,
+  supportsDeveloperRole: false,
+} satisfies NonNullable<Model<Api>["compat"]>;
+
+const ZAI_COMPAT = {
+  supportsStore: false,
+  supportsDeveloperRole: false,
+  supportsReasoningEffort: false,
+  thinkingFormat: "zai" as const,
+  zaiToolStream: true,
+} satisfies NonNullable<Model<Api>["compat"]>;
+
+const ZAI_COMPAT_WITH_REASONING_EFFORT = {
+  ...ZAI_COMPAT,
+  supportsReasoningEffort: true,
+} satisfies NonNullable<Model<Api>["compat"]>;
+
 const SHARED_MODEL_DEFAULTS = {
   input: ["text"] as ["text"],
-  compat: {
-    supportsDeveloperRole: false as const,
-    thinkingFormat: "zai" as const,
-  },
 };
 
 const GLM_4_7_CEREBRAS_MODEL: ZaiModelTemplate = {
@@ -91,6 +119,7 @@ const GLM_4_7_CEREBRAS_MODEL: ZaiModelTemplate = {
   id: "zai-glm-4.7",
   name: "GLM-4.7 Cerebras",
   reasoning: false,
+  compat: CEREBRAS_COMPAT,
   cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   contextWindow: 131_072,
   maxTokens: 40_000,
@@ -102,6 +131,7 @@ const GLM_4_7_ZAI_MODEL: ZaiModelTemplate = {
   id: "glm-4.7",
   name: "GLM 4.7 ZAI",
   reasoning: true,
+  compat: ZAI_COMPAT,
   cost: { input: 0.6, output: 2.2, cacheRead: 0.11, cacheWrite: 0 },
   contextWindow: 204_800,
   maxTokens: 131_072,
@@ -113,6 +143,7 @@ const GLM_5_ZAI_MODEL: ZaiModelTemplate = {
   id: "glm-5",
   name: "GLM-5 (ZAI)",
   reasoning: true,
+  compat: ZAI_COMPAT,
   cost: { input: 0.15, output: 0.6, cacheRead: 0, cacheWrite: 0 },
   contextWindow: 200_000,
   maxTokens: 128_000,
@@ -124,6 +155,7 @@ const GLM_5_TURBO_ZAI_MODEL: ZaiModelTemplate = {
   id: "glm-5-turbo",
   name: "GLM-5 Turbo (ZAI)",
   reasoning: true,
+  compat: ZAI_COMPAT,
   cost: { input: 1.2, output: 4.0, cacheRead: 0, cacheWrite: 0 },
   contextWindow: 200_000,
   maxTokens: 128_000,
@@ -135,6 +167,7 @@ const GLM_5_1_ZAI_MODEL: ZaiModelTemplate = {
   id: "glm-5.1",
   name: "GLM-5.1 (ZAI)",
   reasoning: true,
+  compat: ZAI_COMPAT,
   cost: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 },
   contextWindow: 200_000,
   maxTokens: 128_000,
@@ -146,6 +179,8 @@ const GLM_5_2_ZAI_MODEL: ZaiModelTemplate = {
   id: "glm-5.2",
   name: "GLM-5.2 (ZAI)",
   reasoning: true,
+  compat: ZAI_COMPAT_WITH_REASONING_EFFORT,
+  thinkingLevelMap: ZAI_THINKING_LEVEL_MAP_5_2,
   cost: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 },
   contextWindow: 1_000_000,
   maxTokens: 128_000,
@@ -153,18 +188,18 @@ const GLM_5_2_ZAI_MODEL: ZaiModelTemplate = {
 
 interface ProviderRuntimeConfig {
   baseUrl: string;
-  apiKeyEnvKey: "CEREBRAS_API_KEY" | "ZAI_API_KEY";
+  apiKeyEnvKey: typeof CEREBRAS_API_KEY_ENV | typeof ZAI_API_KEY_ENV;
 }
 
 const PROVIDER_RUNTIME_CONFIG: Record<ZaiModelProvider, ProviderRuntimeConfig> =
   {
     cerebras: {
       baseUrl: CEREBRAS_BASE_URL,
-      apiKeyEnvKey: "CEREBRAS_API_KEY",
+      apiKeyEnvKey: CEREBRAS_API_KEY_ENV,
     },
     zai: {
       baseUrl: ZAI_BASE_URL,
-      apiKeyEnvKey: "ZAI_API_KEY",
+      apiKeyEnvKey: ZAI_API_KEY_ENV,
     },
   };
 
@@ -313,8 +348,8 @@ function materializeModel(
   template: ZaiModelTemplate,
   env: Record<string, string | undefined>,
 ): ZaiProviderModelConfig | undefined {
-  const apiKey = resolveProviderApiKey(env, template.provider);
-  if (!apiKey) return undefined;
+  const hasApiKey = resolveProviderApiKey(env, template.provider);
+  if (!hasApiKey) return undefined;
 
   return {
     id: template.id,
@@ -324,9 +359,9 @@ function materializeModel(
     cost: template.cost,
     contextWindow: template.contextWindow,
     maxTokens: template.maxTokens,
-    compat: template.compat,
     baseUrl: resolveProviderBaseUrl(template.provider),
-    apiKey,
+    compat: template.compat,
+    thinkingLevelMap: template.thinkingLevelMap,
   };
 }
 
@@ -349,23 +384,33 @@ function resolveModels(
 function routeModelToProviderEndpoint(
   model: unknown,
   env: Record<string, string | undefined>,
-): unknown {
-  if (!model || typeof model !== "object") return model;
+): ModelRoutingResult {
+  if (!model || typeof model !== "object") {
+    return { model, apiKey: undefined };
+  }
 
   const modelRecord = model as Record<string, unknown>;
   const modelId =
     typeof modelRecord.id === "string" ? modelRecord.id.trim() : undefined;
-  if (!modelId) return model;
+  if (!modelId) {
+    return { model, apiKey: undefined };
+  }
 
   const provider = providerForModelId(modelId);
-  if (!provider) return model;
+  if (!provider) {
+    return { model, apiKey: undefined };
+  }
 
   const apiKey = resolveProviderApiKey(env, provider);
-  if (!apiKey) return model;
+  if (!apiKey) {
+    return { model, apiKey: undefined };
+  }
 
   return {
-    ...modelRecord,
-    baseUrl: resolveProviderBaseUrl(provider),
+    model: {
+      ...modelRecord,
+      baseUrl: resolveProviderBaseUrl(provider),
+    },
     apiKey,
   };
 }
@@ -392,10 +437,9 @@ export function applyZaiPayloadKnobs(
  * then consumed here for per-role provider behavior.
  *
  * [tag:zai_custom_routed_api_key_precedence]
- * `streamSimpleOpenAICompletions` prioritizes `options.apiKey` over `model.apiKey`.
- * After model-ID routing, we must mirror the routed key into options so mixed
- * provider environments (both CEREBRAS_API_KEY and ZAI_API_KEY) authenticate
- * against the endpoint selected by model ID.
+ * Modern OpenAI Completions streaming reads request auth from options. After
+ * model-ID routing, mirror the selected host key into options so mixed provider
+ * environments authenticate against the endpoint selected by model ID.
  */
 export function createZaiStreamSimple(
   baseStreamSimple: ZaiStreamSimple,
@@ -404,45 +448,50 @@ export function createZaiStreamSimple(
   return (model, context, options) => {
     const runtime = resolveZaiRuntimeSettings(env, options);
     const callerOnPayload = options?.onPayload;
-    const routedModel = routeModelToProviderEndpoint(model, env);
-    const routedApiKey =
-      routedModel && typeof routedModel === "object"
-        ? parseOptionalString((routedModel as Record<string, unknown>).apiKey)
-        : undefined;
+    const routedModelResult = routeModelToProviderEndpoint(model, env);
+
     const wrappedOptions: ZaiSimpleOptions = {
       ...options,
       // [ref:zai_custom_routed_api_key_precedence]
-      apiKey: routedApiKey ?? options?.apiKey,
+      apiKey: routedModelResult.apiKey ?? options?.apiKey,
       temperature: runtime.temperature,
-      onPayload: (payload: unknown, payloadModel: Model<Api>) => {
-        callerOnPayload?.(payload, payloadModel);
+      async onPayload(payload: unknown, payloadModel: Model<Api>) {
+        const replacement = await callerOnPayload?.(payload, payloadModel);
         // [ref:zai_custom_payload_knobs]
-        applyZaiPayloadKnobs(payload, runtime);
+        applyZaiPayloadKnobs(replacement ?? payload, runtime);
+        return replacement;
       },
     };
-    return baseStreamSimple(routedModel as Model<Api>, context, wrappedOptions);
+
+    return baseStreamSimple(
+      routedModelResult.model as Model<Api>,
+      context,
+      wrappedOptions,
+    );
   };
 }
 
-function resolveProviderFallbackApiKey(
+function resolveProviderAuthApiKey(
   env: Record<string, string | undefined>,
-): string {
-  const cerebrasKey = resolveProviderApiKey(env, "cerebras");
-  if (cerebrasKey) return cerebrasKey;
+): string | undefined {
+  const cerebrasApiKey = resolveProviderApiKey(env, "cerebras");
+  if (cerebrasApiKey) return `$${CEREBRAS_API_KEY_ENV}`;
 
-  const zaiKey = resolveProviderApiKey(env, "zai");
-  if (zaiKey) return zaiKey;
+  const zaiApiKey = resolveProviderApiKey(env, "zai");
+  if (zaiApiKey) return `$${ZAI_API_KEY_ENV}`;
 
-  return API_KEY_ENV_PLACEHOLDER;
+  return undefined;
 }
 
 export function buildZaiProviderConfig(
   input: ZaiProviderConfigInput,
   env: Record<string, string | undefined> = process.env,
 ): ZaiProviderConfig {
+  const providerApiKey = resolveProviderAuthApiKey(env);
+
   return {
     baseUrl: CEREBRAS_BASE_URL,
-    apiKey: resolveProviderFallbackApiKey(env),
+    apiKey: providerApiKey,
     api: "openai-completions",
     streamSimple: input.streamSimple,
     models: resolveModels(env),
