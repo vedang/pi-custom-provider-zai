@@ -170,6 +170,13 @@ test("index extension registers zai-custom provider", () => {
   assert.match(source, /registerProvider\([\s\S]*"zai-custom"/);
 });
 
+test("index uses the public OpenAI completions provider factory", () => {
+  const source = readFileSync(indexPath, "utf-8");
+
+  assert.doesNotMatch(source, /@earendil-works\/pi-ai\/api\//);
+  assert.match(source, /openAICompletionsApi/);
+});
+
 test("buildZaiProviderConfig returns no models or ambiguous key when no provider keys are configured", () => {
   const config = buildConfig();
 
